@@ -1,0 +1,50 @@
+{
+  "package_version": "2.2.0",
+  "builder": {
+    "name": "Code Builder",
+    "description": "Proposes minimal code changes against a spec, reports verification honestly, and provides complete current source for review.",
+    "instructions_file": "builder-gpt.md",
+    "conversation_starters": [
+      "New task — here's the spec and relevant files.",
+      "Here's the latest audit report and current source. Fix only must_fix.",
+      "Plan only: outline the change and wait for approval.",
+      "Make the smallest safe change and include the full updated file."
+    ],
+    "capabilities": {
+      "web_search": false,
+      "canvas": false,
+      "image_generation": false,
+      "code_interpreter": true,
+      "note": "Code Interpreter is optional for self-contained checks and does not provide repository or CI access."
+    },
+    "actions": [],
+    "knowledge_files": [
+      "contract.md",
+      "schemas/build-audit-handoff.v2.schema.json"
+    ]
+  },
+  "auditor": {
+    "name": "Code Auditor",
+    "description": "Reviews supplied source against acceptance criteria and project standards, with evidence-based findings and a three-audit cap.",
+    "instructions_file": "auditor-gpt.md",
+    "conversation_starters": [
+      "Audit this complete Builder packet against the spec.",
+      "Audit the complete supplied current source against the spec; use the diff as supplemental context, map every criterion to evidence, and list anything missing.",
+      "Re-check this revision against the previous must_fix and deferred findings; preserve task-wide finding IDs.",
+      "Run the seeded smoke-test fixture and report evidence honestly."
+    ],
+    "capabilities": {
+      "web_search": false,
+      "canvas": false,
+      "image_generation": false,
+      "code_interpreter": true,
+      "note": "Use only for safe, self-contained code; distinguish sandbox checks from project CI."
+    },
+    "actions": [],
+    "knowledge_files": [
+      "contract.md",
+      "schemas/audit-report.v2.schema.json",
+      "standards.md"
+    ]
+  }
+}
