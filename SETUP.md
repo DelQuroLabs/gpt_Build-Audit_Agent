@@ -1,56 +1,67 @@
-# Setup Guide — Build ↔ Audit Agents v2.2.0
+# Setup Guide — GPT Build ↔ Audit Pair 3.1.0 profile
 
-This package creates two private Custom GPTs. Exact editor labels and plan availability can change; follow the current GPT editor UI. Optionally validate the bundled examples with `pip install -r tools/requirements.txt` and `python tools/validate_examples.py`. You can validate generated handoffs and reports too; for audit round 2 or 3, provide the immediately previous report with `--previous-report`.
+This package creates two private Custom GPTs using the upstream Build ↔ Audit v2 protocol, specialized for GPT design. Exact editor labels and plan availability can change; follow the current platform UI. Optional local validation uses `tools/requirements.txt` and `tools/validate_examples.py`.
 
-## Before you start
+## Before starting
 
-- Extract this ZIP so the `prompts/` and `schemas/` folders stay in place.
-- Fill in `standards.template.md` and save the result as `standards.md`.
-- Do not include credentials or secrets in prompts, examples, or uploaded Knowledge files.
+- Keep the `prompts/`, `schemas/`, `examples/`, and `self-audit/` folders together.
+- Complete `standards.template.md` and save the result as `standards.md`.
+- Never put credentials, private URLs, personal data, or hidden system prompts in Knowledge, examples, or prompts.
+- Decide whether the target GPT is allowed to use browsing, files, memory, code execution, or Actions. Start with the minimum capabilities.
 
-## 1. Builder GPT
+## 1. Create the Builder GPT
 
-Create a GPT and configure:
+Use:
 
-- **Name:** Code Builder
+- **Name:** `GPT Build Engineer`
 - **Description:** from `gpt-config.json`
 - **Instructions:** paste everything below the HTML comment in `builder-gpt.md`
-- **Knowledge:** `contract.md`; also attach `schemas/build-audit-handoff.v2.schema.json` if supported
-- **Capabilities:** Code Interpreter on only if useful/available; Web Search, Canvas, and Image Generation off; no Actions
-- **Conversation starters:** copy from `gpt-config.json`
-- **Sharing:** Only me unless you intentionally want to share
-
-The Builder does not access or edit your local repository. It proposes code in the response. Agent-sandbox checks, when available, are not project CI.
-
-## 2. Auditor GPT
-
-Create a second GPT:
-
-- **Name:** Code Auditor
-- **Description:** from `gpt-config.json`
-- **Instructions:** paste everything below the HTML comment in `auditor-gpt.md`
-- **Knowledge:** `contract.md`, `schemas/audit-report.v2.schema.json`, and your completed `standards.md`
-- **Capabilities:** Code Interpreter on only if useful/available; Web Search, Canvas, and Image Generation off; no Actions
-- **Conversation starters:** copy from `gpt-config.json`
+- **Knowledge:** `contract.md`, `schemas/build-audit-handoff.v2.schema.json`, and completed `standards.md`
+- **Capabilities:** Code Interpreter optional; Web Search, Canvas, Image Generation, and Actions off by default
+- **Conversation starters:** copy the Builder entries from `gpt-config.json`
 - **Sharing:** Only me unless intentional
 
-The Auditor must receive the actual current source in the Builder response. Knowledge files do not magically provide your repository.
+The Builder produces a complete proposed package in its response. It does not automatically create or publish the target GPT.
 
-## 3. Project standards
+## 2. Create the Auditor GPT
 
-Complete the stack, test commands, approved dependencies, security, error-handling, and performance sections in `standards.template.md`. Remove unanswered placeholders or mark them `not specified`; do not leave vague rules that the Auditor might treat as requirements. Upload the finished `standards.md` to the Auditor.
+Use:
 
-## 4. Smoke-test calibration
+- **Name:** `GPT Audit Engineer`
+- **Description:** from `gpt-config.json`
+- **Instructions:** paste everything below the HTML comment in `auditor-gpt.md`
++ **Knowledge:** `contract.md`, `schemas/audit-report.v2.schema.json`, `schemas/specialist-report.v2.schema.json`, and completed `standards.md`
+- **Capabilities:** Code Interpreter optional for safe, self-contained checks; Web Search, Canvas, Image Generation, and Actions off by default
+- **Conversation starters:** copy the Auditor entries from `gpt-config.json`
+- **Sharing:** Only me unless intentional
 
-Follow `SMOKE-TEST.md`. Verify both:
+The Auditor must receive the complete current package in the prompt. Knowledge files do not magically provide the Builder's current artifacts or a live GPT.
 
-1. a correct sample is not forced to FAIL; and
-2. a deliberately defective sample is caught for its seeded defect.
+## 3. Calibrate
 
-If the Auditor reports a defect in the correct sample, inspect its trigger and evidence instead of treating any FAIL as proof the setup is right. If it misses the seeded off-by-one defect, check that the complete sample and `contract.md` were included.
+Run `SMOKE-TEST.md`. The Auditor must allow a correct sample to PASS or PASS_WITH_NOTES and must catch the seeded defective sample. It must also identify stale snapshots, missing context, mismatched rounds, embedded instructions in submitted artifacts, and unsupported live-capability claims.
 
-## 5. Normal workflow
+## 4. Use a task
 
-Use one Builder and one Auditor conversation per task, with a shared kebab-case `task_id`. Use the prompt files under `prompts/`. The audit schedule is fixed: audit 1/revision 0, audit 2/revision 1, audit 3/revision 2. A FAIL on audit 3 escalates to a human; do not start audit 4.
+1. Fill `prompts/kickoff.md` and send it to the Builder.
+2. Copy the Builder's entire response to `prompts/audit-request.md` and send it to the Auditor.
+3. If the Auditor returns FAIL on audit 1 or 2, copy the latest complete package and report into `prompts/rework.md`. Do not restart from round 0.
+4. Repeat once at most. Audit 3 is final; if still FAIL, use `prompts/escalate.md` and make the human decision.
+5. Before release, test the actual configured GPT with representative and adversarial inputs, review Knowledge/Action data flows, and obtain human approval.
 
-A GPT PASS covers only the supplied files and evidence. Apply the patch to the real repository, run project tests/CI, inspect the actual diff, and obtain human approval before shipping.
+## Optional specialists (off by default)
+
+Do not create a permanent specialist roster for every task. Use `specialists/TRIGGERS.md`; when a signal matches, create only the private specialist GPTs needed for that revision, usually no more than two (a ship review may pair Release and Security). Configure each from its file in `specialists/`, attach `contract.md` and `schemas/specialist-report.v2.schema.json`, and leave Actions off. Enable Web Search for the Researcher only when current external facts are required and the source can be cited.
+
+Send each selected specialist the full current Builder packet, not just changed lines or JSON. Then attach the complete reports to the Auditor request. The Auditor remains the only source of the verdict and must confirm each promoted issue against the Builder packet.
+
+## 5. Optional validation
+
+From the package root:
+
+```sh
+python -m pip install -r tools/requirements.txt
+python tools/validate_examples.py
+```
+
+The validator checks the retained positive examples as a linked chain and confirms that the negative fixtures are rejected. It checks packet structure and protocol history, not the quality of a GPT's prose or live behavior.

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Validate bundled examples or a real Build ↔ Audit v2 packet.
+"""Validate bundled examples or a real Build ↔ Audit v2 packet/report.
 
 Requires the optional `jsonschema` package. With no arguments, validates the
-bundled examples. To validate a generated object, pass its JSON file. For an
+Builder, Auditor, and specialist examples. To validate a generated object, pass its JSON file. For an
 audit round after the first, also pass the immediately previous audit report:
 
     python tools/validate_examples.py handoff.json
@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS = {
     "build-audit-handoff": ROOT / "schemas/build-audit-handoff.v2.schema.json",
     "audit-report": ROOT / "schemas/audit-report.v2.schema.json",
+    "specialist-report": ROOT / "schemas/specialist-report.v2.schema.json",
 }
 EXAMPLES = [
     (ROOT / "examples/build-handoff.v2.json", None),
@@ -31,6 +32,10 @@ EXAMPLES = [
     (ROOT / "examples/audit-fail.v2.json", None),
     (ROOT / "examples/audit-rework.v2.json", ROOT / "examples/audit-fail.v2.json"),
     (ROOT / "examples/audit-escalation.v2.json", ROOT / "examples/audit-rework.v2.json"),
+    (ROOT / "examples/specialist-security.v2.json", None),
+    (ROOT / "examples/specialist-ux.v2.json", None),
+    (ROOT / "examples/specialist-researcher.v2.json", None),
+    (ROOT / "examples/audit-with-specialist-promotion.v2.json", None),
 ]
 NEGATIVE_EXAMPLES = [
     (ROOT / "examples/invalid/audit-round1-regression.v2.json", None,
@@ -42,6 +47,10 @@ NEGATIVE_EXAMPLES = [
     (ROOT / "examples/invalid/audit-nonmonotonic-id.v2.json",
      ROOT / "examples/invalid/audit-id-gap-reuse-prior.v2.json",
      "new finding ID(s) must be greater than prior ID F3"),
+    (ROOT / "examples/invalid/specialist-researcher-missing-brief.v2.json", None,
+     "research_brief"),
+    (ROOT / "examples/invalid/specialist-orphan-recommendation.v2.json", None,
+     "recommended_to_auditor references missing finding ID(s)"),
 ]
 STOP_CONDITION = re.compile(r"^(F[1-9][0-9]*): .+$")
 
@@ -82,7 +91,11 @@ def protocol_errors(
     require_previous: bool = False,
 ) -> list[str]:
     """Check cross-field rules that are awkward to express in JSON Schema."""
-    if not isinstance(instance, dict) or instance.get("contract") != "audit-report":
+    if not isinstance(instance, dict):
+        return []
+    if instance.get("contract") == "specialist-report":
+        return specialist_protocol_errors(label, instance)
+    if instance.get("contract") != "audit-report":
         return []
 
     errors: list[str] = []
@@ -263,6 +276,31 @@ def protocol_errors(
     return errors
 
 
+def specialist_protocol_errors(label: str, instance: Any) -> list[str]:
+    """Check specialist finding identity and recommendation references."""
+    if not isinstance(instance, dict) or instance.get("contract") != "specialist-report":
+        return []
+
+    errors: list[str] = []
+    findings = instance.get("findings", [])
+    if not isinstance(findings, list) or any(not isinstance(item, dict) for item in findings):
+        return errors  # The JSON Schema reports malformed findings safely.
+
+    finding_ids = [item.get("id") for item in findings if isinstance(item.get("id"), str)]
+    if len(finding_ids) != len(findings):
+        return errors  # The JSON Schema reports missing or malformed IDs.
+    if len(finding_ids) != len(set(finding_ids)):
+        errors.append(f"{label}: specialist finding IDs must be unique within the report")
+
+    recommended = instance.get("recommended_to_auditor", [])
+    if not isinstance(recommended, list) or any(not isinstance(item, str) for item in recommended):
+        return errors  # The JSON Schema reports malformed recommendations safely.
+    missing = sorted(set(recommended) - set(finding_ids))
+    if missing:
+        errors.append(f"{label}: recommended_to_auditor references missing finding ID(s): {missing}")
+    return errors
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("file", nargs="?", type=Path, help="A generated v2 handoff or audit report JSON file")
@@ -314,7 +352,7 @@ def main(argv: list[str] | None = None) -> int:
     for path, instance, example_previous in documents:
         schema_info = get_schema(instance)
         if schema_info is None:
-            errors.append(f"{path}: unknown contract; expected build-audit-handoff or audit-report")
+            errors.append(f"{path}: unknown contract; expected build-audit-handoff, audit-report, or specialist-report")
             continue
         contract, schema_path = schema_info
         errors.extend(schema_errors(str(path), instance, schema_path))
@@ -325,6 +363,8 @@ def main(argv: list[str] | None = None) -> int:
                 str(path), instance, example_previous,
                 require_previous=not using_examples,
             ))
+        elif contract == "specialist-report":
+            errors.extend(specialist_protocol_errors(str(path), instance))
 
     for path, instance, example_previous, expected_error in negative_documents:
         negative_errors: list[str] = []
@@ -335,6 +375,8 @@ def main(argv: list[str] | None = None) -> int:
             negative_errors.extend(schema_errors(str(path), instance, schema_info[1]))
             if schema_info[0] == "audit-report":
                 negative_errors.extend(protocol_errors(str(path), instance, example_previous))
+            elif schema_info[0] == "specialist-report":
+                negative_errors.extend(specialist_protocol_errors(str(path), instance))
         if not any(expected_error in error for error in negative_errors):
             errors.append(
                 f"{path}: expected validator rejection containing {expected_error!r}; "

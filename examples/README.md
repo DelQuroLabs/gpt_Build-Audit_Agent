@@ -9,3 +9,5 @@ python tools/validate_examples.py
 python tools/validate_examples.py path/to/build-handoff.json
 python tools/validate_examples.py path/to/current-audit.json --previous-report path/to/prior-audit.json
 ```
+
+The optional specialist reports and the specialist-promotion audit example are included in the no-argument fixture run. Specialist reports must match the Builder `task_id` and `build_revision`; they do not replace the complete Builder packet.

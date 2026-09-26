@@ -1,61 +1,76 @@
-# Project Standards (template)
+# GPT Project Standards (template)
 
-Complete this file and attach it to the Auditor GPT. Replace unanswered items with `not specified` or delete them. Only concrete, documented standards are enforceable as conventions.
+Complete this file and save it as `standards.md` before attaching it to the Auditor. Replace unanswered fields with `not specified` or remove them. Only concrete, documented standards are enforceable.
 
-## Project identity
+## Product identity
 
-- Project/repository:
-- Primary language and runtime/version:
-- Framework/version:
-- Source revision/branch (if known):
+- GPT/project name:
+- Target platform/editor and plan:
+- Primary audience and job to be done:
+- Language(s), tone, accessibility requirements:
+- Owner and review cadence:
 
-## Build and tests
+## Behavior contract
 
-- Package manager and version:
-- Install/build commands:
-- Unit-test command:
-- Integration/e2e commands:
-- Required checks before merge:
-- Test coverage or specific test expectations:
+- Canonical one-sentence spec:
+- In scope:
+- Explicitly out of scope:
+- Required output format:
+- Required uncertainty/citation behavior:
+- Required human escalation behavior:
 
-## Dependencies
+## Platform and capabilities
 
-- Approved dependencies:
-- Banned dependencies and reasons:
-- Approval process for new dependencies:
+- Model/platform assumptions:
+- Browsing/Web Search allowed:
+- File uploads/Knowledge allowed:
+- Memory/background behavior allowed:
+- Code Interpreter allowed:
+- Actions/API integrations allowed:
+- Capabilities that must not be claimed:
 
-## Code conventions
+## Knowledge governance
 
-- Formatter/linter and commands:
-- Naming and file organization:
-- Export/API conventions:
-- Documentation requirements:
+- Approved sources:
+- Source owner:
+- Version/freshness requirement:
+- Citation or quotation requirement:
+- Conflict-resolution rule:
+- Sensitive data that must not be uploaded or returned:
 
-## Error handling and observability
+## Actions and data flows
 
-- Expected error-handling pattern:
-- When, if ever, may errors be swallowed:
-- Logging library/levels:
-- Data that must never be logged:
+- Approved endpoints/actions:
+- Authentication and authorization model:
+- Minimum data sent:
+- User confirmation required for:
+- Input/output validation:
+- Timeout, retry, partial-success, and rollback behavior:
+- Logs and data-retention limits:
 
-## Security and privacy
+## Safety and privacy
 
-- Input-validation boundary:
-- Authentication/authorization patterns:
-- Secret/configuration handling:
-- Required security checks:
+- Disallowed or high-risk use cases:
+- Required refusal/redirection behavior:
+- Security/privacy checks:
+- Secret-handling rule:
+- Personal, financial, legal, medical, or regulated-data boundary:
+- Human owner for escalations:
 
-## Performance / reliability budgets
+## Evaluation and release
 
-- Latency or resource limits:
-- Maximum payload/page size:
-- Concurrency/retry/timeout requirements:
-- Database/query constraints:
+- Required normal-path evals:
+- Required boundary/adversarial evals:
+- Required tool/Knowledge failure evals:
+- Regression suite and versioning:
+- Pass threshold:
+- Live-platform verification required before release:
+- Human release approver:
 
-## Always-blocking project-specific issues
+## Maintenance
 
-- not specified
-
-## Explicitly out of scope
-
-- not specified
+- Change log location:
+- How Knowledge updates are reviewed:
+- How Actions/schema changes are reviewed:
+- Rollback procedure:
+- Maximum acceptable review rounds:

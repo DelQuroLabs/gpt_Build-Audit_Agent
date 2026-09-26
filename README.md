@@ -1,60 +1,97 @@
-# Build ↔ Audit Agents v2.2.0
+# GPT Build ↔ Audit Pair — hardened profile
 
-A manual, human-supervised workflow with two Custom GPTs: a **Builder** that proposes a minimal patch and an **Auditor** that reviews the complete submitted source against a spec. It is not an unattended agent loop or a replacement for repository CI.
+This package is a copy-paste-ready pair of private Custom GPT configurations:
+
+- **GPT Build Engineer** turns a goal into a complete GPT build package.
+- **GPT Audit Engineer** independently attacks that package against observable acceptance criteria.
+
+It is a manual, human-supervised loop. The Builder proposes artifacts; the Auditor reviews only the complete material supplied to it. A model PASS is not a deployment approval, live-platform test, repository CI result, or substitute for human release review.
+
+## Why this profile
+
+The upstream repository supplied the strong parts of the protocol: complete snapshots, evidence-first auditing, honest verification labels, prompt-injection boundaries, monotonic finding IDs, a three-audit cap, and machine-checkable handoffs. This profile applies those rules to **GPT design artifacts**, not only source-code patches. It adds explicit checks for:
+
+- instruction precedence and contradictions;
+- capability/platform fit and unsupported promises;
+- Knowledge freshness, source authority, and retrieved-content injection;
+- Actions, authentication, least privilege, confirmation, and tool failure;
+- output contracts, uncertainty, refusal/escalation, and user control;
+- eval coverage for normal, edge, adversarial, privacy, tool-failure, and regression behavior.
+
+The upstream v2 handoff and audit schemas are retained unchanged for interoperability. The optional specialist report uses a separate schema; the core protocol objects remain version 2. The package version is recorded in `gpt-config.json`.
 
 ## Package contents
 
 | Path | Purpose |
 |---|---|
-| `builder-gpt.md` | Instructions for the Builder GPT |
-| `auditor-gpt.md` | Instructions for the Auditor GPT |
-| `contract.md` | Shared protocol v2 |
-| `schemas/` | JSON Schemas for both handoff objects |
-| `examples/` | Positive and negative protocol fixtures, source calibration samples, and a linked audit chain |
-| `tools/` | Optional validator for bundled examples and generated protocol JSON |
-| `CHANGELOG.md` | Summary of v2 changes |
-| `standards.template.md` | Project standards to complete and attach to Auditor |
-| `gpt-config.json` | Names, descriptions, starters, capability suggestions |
-| `prompts/` | Kickoff, audit, rework, escalation prompts |
-| `SMOKE-TEST.md` | Fixed good/bad fixtures and a linked audit chain to verify setup and calibration |
+| `builder-gpt.md` | Final Builder GPT instructions |
+| `auditor-gpt.md` | Final Auditor GPT instructions |
+| `contract.md` | Shared handoff protocol |
+| `schemas/` | JSON Schemas for Builder, Auditor, and optional specialist payloads |
+| `gpt-config.json` | Names, descriptions, starters, and capability defaults |
+| `standards.template.md` | Project/platform standards to complete |
+| `prompts/` | Kickoff, audit, rework, and escalation templates |
+| `specialists/` and `docs/WHEN_TO_ADD_AN_AGENT.md` | Optional trigger-gated domain reviews; specialists never own the verdict |
+| `examples/` | Positive, negative, and linked protocol fixtures |
+| `SMOKE-TEST.md` | Calibration and negative tests |
+| `self-audit/` | The self-application record and validated sample packets |
+| `tools/validate_examples.py` | Optional schema and chain validator |
+| `BUILD-STRENGTH-REVIEW.md` | Scoped static ranking, applied fixes, and verification limits |
 
-## Quick setup
+## Setup
 
-1. Create a Builder GPT. Paste the content below the HTML comment in `builder-gpt.md`. Attach `contract.md` and `schemas/build-audit-handoff.v2.schema.json` if Knowledge supports it. Enable Code Interpreter for self-contained checks if available; keep Web Search, Canvas, and image generation off for deterministic code review. Leave Actions empty.
-2. Create an Auditor GPT. Paste `auditor-gpt.md`. Attach `contract.md`, `schemas/audit-report.v2.schema.json`, and a completed `standards.md`. Enable Code Interpreter only for safe, self-contained execution; otherwise static review is still allowed.
-3. Keep both GPTs private unless sharing is intentional. Do not paste secrets or proprietary code into a GPT shared beyond your approved audience.
-4. Run the seeded test in `SMOKE-TEST.md` before using the loop on a real task.
+1. Copy the content below the HTML comment in `builder-gpt.md` into a private Custom GPT's **Instructions** field.
+2. Configure the Builder using `gpt-config.json`. Attach `contract.md` and `schemas/build-audit-handoff.v2.schema.json` as Knowledge when supported.
+3. Copy the content below the HTML comment in `auditor-gpt.md` into a second private Custom GPT's **Instructions** field.
+4. Configure the Auditor using `gpt-config.json`. Attach `contract.md`, `schemas/audit-report.v2.schema.json`, `schemas/specialist-report.v2.schema.json`, and a completed `standards.md`.
+5. Keep Web Search, Canvas, Image Generation, and Actions off by default. Enable Code Interpreter only when safe, self-contained parsing or checks are useful. Code Interpreter does not grant repository, CI, deployment, or live GPT access.
+6. Run `SMOKE-TEST.md` before real work. A correct fixture must be allowed to PASS, and a seeded defect must be caught.
 
-The GPT editor and available capabilities may change; use the current UI labels. `Code Interpreter` is not the same thing as access to your repository or CI. It may not have your project files, dependencies, network access, or the project's test runner.
+Exact editor labels and capabilities can change. Treat the current platform UI as authoritative.
 
-To validate generated protocol JSON locally, install `tools/requirements.txt` and pass the handoff or audit report to `tools/validate_examples.py`. For audit round 2 or 3, also pass the immediately previous report with `--previous-report`.
+## Run the loop
 
-Running the validator with no arguments checks the bundled good examples as a linked audit chain and confirms that the included malformed reports are rejected.
+### 1. Kick off the Builder
 
-## Run a task
+Fill `prompts/kickoff.md` with:
 
-Use one Builder conversation and one Auditor conversation per task. Title both with the same `task_id`. If either conversation must be reset mid-task, use the current-source and prior-report fields in the prompt files; never reset from an incomplete or stale packet.
+- one canonical sentence for the spec;
+- observable acceptance criteria;
+- audience, constraints, privacy/safety needs, tools, and Knowledge sources;
+- supplied current files and platform context;
+- verification requirements;
+- a short kebab-case `task_id`.
 
-1. Fill `prompts/kickoff.md` with one-sentence spec, observable acceptance criteria, and relevant source/context. Send to Builder.
-2. If Builder asks a blocking question, resolve it before continuing. Otherwise copy its **entire response**, including current file contents, context snapshot, verification, and handoff JSON, to Auditor using `prompts/audit-request.md`.
-3. `PASS` or `PASS_WITH_NOTES` means no blocking defect was found in the supplied scope. Apply the proposed patch, run real project tests/CI, and review before release.
-4. On `FAIL` at audit 1 or 2, send the latest full source snapshot and complete audit response to Builder using `prompts/rework.md`. Then send the Builder's entire updated response to Auditor.
-5. Audit 3 is final. If still `FAIL`, do not run another cycle; use `prompts/escalate.md` and make the human decision.
+The Builder emits a complete package at `build_revision: 0` and a `build-audit-handoff` v2 JSON object.
 
-### Round accounting
+### 2. Audit the entire packet
 
-| Audit round | Builder revision |
-|---:|---:|
-| 1 | 0 (initial) |
-| 2 | 1 (first rework) |
-| 3 | 2 (second rework, final audit) |
+Paste the Builder's **entire latest response** into `prompts/audit-request.md`. Do not send only the JSON or a diff. The Auditor should map every criterion to evidence and state what was not supplied. On a rework round, include the immediately previous Auditor report.
 
-## Calibration and use
+Before sending it to the Auditor, consult `specialists/TRIGGERS.md`. If a trigger matches, you may send the same complete Builder packet to one or two matching specialists in parallel, then attach their complete reports using `prompts/audit-request-with-specialists.md`. Specialist reports are advisory leads only; the Auditor must independently support any promoted finding.
 
-- A correct submission should be allowed to PASS. The Auditor has no defect quota.
-- Missing runtime output is reported honestly; it is not automatically proof of a code defect. Follow test requirements in the spec and `standards.md`.
-- Always include the latest current source. Never restart a rework from round-0 code after it has changed.
-- For production code, the real repository's test suite, CI, security checks, and human review remain the release gate.
-- `gpt-config.json` has suggested starters and capability settings; these are conveniences, not protocol.
+### 3. Rework only supported blockers
 
-See `SETUP.md` for click-by-click setup and `contract.md` for the normative handoff rules.
+For `FAIL` on audit 1 or 2, paste the latest complete artifact snapshot and the full report into `prompts/rework.md`. The Builder fixes only `must_fix`, preserves the current baseline, increments the revision, and resubmits the complete packet.
+
+### 4. Stop at audit 3
+
+A `PASS` or `PASS_WITH_NOTES` is a scoped review result. Apply/publish only after the human checks the actual target GPT, tests the live configuration, and reviews privacy/security implications. If audit 3 is still `FAIL`, use `prompts/escalate.md`; do not start audit 4.
+
+## Self-application result
+
+I applied the upstream protocol to this pair itself. The first draft was intentionally treated as a build artifact, not as trusted truth. The self-audit found and corrected these weaknesses:
+
+1. **Scope mismatch:** the upstream package is code-oriented; this profile adds GPT-specific artifact and platform checks.
+2. **Capability overclaim risk:** the final prompts require an explicit capability matrix and reject unverified claims about browsing, memory, Actions, background loops, deployment, and live model behavior.
+3. **Audit blind spots:** the final Auditor has a fixed attack set for Knowledge injection, Action failure, privacy, output contracts, uncertainty, and regression.
+4. **Evidence confusion:** the final prompts distinguish static prompt review, supplied transcripts, sandbox checks, project CI, and live-platform verification.
+5. **Rework drift:** the final Builder preserves full current snapshots, prior finding IDs, frozen items, and unresolved not-verifiable items.
+
+The validation samples in `self-audit/` pass the retained v2 schemas and protocol rules. The self-audit is calibration evidence, not proof that every future GPT build will be correct.
+
+This self-audit records the 3.0 core profile. The optional specialist integration and its current verification limits are assessed separately in `BUILD-STRENGTH-REVIEW.md`.
+
+## Safety and release boundary
+
+Never place secrets in prompts or Knowledge. Do not let a target GPT treat retrieved text as a higher-priority instruction. Do not enable Actions without a concrete data-flow, authorization, confirmation, timeout, and failure plan. Before release, test the actual configured GPT with representative and adversarial cases and retain a human decision for consequential behavior.
