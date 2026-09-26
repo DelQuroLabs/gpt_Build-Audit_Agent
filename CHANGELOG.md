@@ -1,28 +1,49 @@
 # Changelog
 
-## 4.0.0-gpt-profile
+## 3.2.0-gpt-profile
 
-Breaking: the protocol moves from v2 to **v3**. The schemas, examples, and validator were updated together.
-
-- **Platform fit.** Rewrote the Builder (9,784 → 6,387 characters) and Auditor (11,135 → 7,330 characters) instructions to fit the 8,000-character Custom GPT Instructions limit. Detail moved to the new Knowledge files `builder-reference.md` and `auditor-reference.md`. `tools/check_package.py` enforces a 7,500-character budget.
-- **Deterministic acceptance (v3).** Handoff criteria are now objects (`id`, `text`, `kind`, `evidence_required`). Audit reports carry a required `acceptance_check` row per criterion. Behavioral criteria count as `met` only with a transcript or executed check. PASS reports with unverifiable criteria must say `Static-only: n of m`.
-- **Defined edge behavior.** Any agent that stops to ask replies only with `## Input needed` (no verdict, artifacts, or JSON). Missing standards or transcripts are disclosed, not a stop condition. Ad-hoc audits reconstruct numbered criteria. `plan-only` replies have a defined shape with no handoff. Artifacts that contradict a behavior yield `not_met`. Each agent's own contract and reference files are trusted guidance; the target's Knowledge is untrusted data.
-- **Rework traceability.** New handoff field `addresses` (the prior `must_fix` IDs), checked against the previous report. Only the Auditor allocates finding IDs; the Builder reports regressions as `flags`.
-- **Specialists rebuilt for GPT packages.** New GPT-artifact trigger matrix and GPT-specific lenses. Every specialist is self-contained, with a shared trust-boundary, evidence, and output block. Researcher facts are labeled `verified` or `unverified`. The finding category enums are aligned across schemas (`ux`, `data`, and `ops` added to audit reports).
-- **GPT calibration suite.** Replaced the code fixtures with a Requirements Brief GPT package: one correct packet, five seeded-defect packets (generated and integrity-checked from a manifest), expected audit reports, a three-round chain, and specialist examples. There are 15 expected-rejection cases.
-- **Tooling and CI.** The validator accepts `.md` responses, `--handoff`, and `--specialist`, and is manifest-driven. Added `tools/check_package.py` and the GitHub Actions workflow `validate.yml`.
-- **Docs.** Rewrote the README, setup, smoke test (with a results template), contract, and templates. Removed the stale `BUILD-STRENGTH-REVIEW.md`. Added an MIT `LICENSE`.
+- Defined early response states, required references, explicit tool budgets, and no-tool behavior.
+- Aligned full finding history, frozen states, new regression IDs, and Builder/Auditor ownership across prompts, contract, validator, and examples.
+- Added complete generated installation prompts with shared specialist controls and a conservative size budget.
+- Added fixed GPT calibration packets, manual behavioral cases, and executable validator regressions.
+- Hardened JSON parsing; tools default off. Retained v2 field shapes with stricter history validation.
+- See docs/PROMPT-AUDIT.md for this audit's evidence and live-verification limits.
 
 ## 3.1.0-gpt-profile
 
-- Integrated the specialist extension as optional, advisory-only profiles; protocol v2.
-- Added same-task/revision specialist handling, schema validation, and promotion fixtures.
+- Integrated the value-gated specialist extension as optional, advisory-only profiles; the Builder/Auditor protocol remains v2.
+- Added same-task/revision specialist handling, schema validation, cross-field checks, and promotion fixtures.
+- Clarified package integration, trigger discipline, and the limits of the available verification evidence.
 
 ## 3.0.0-gpt-profile
 
-- Applied the upstream v2.2.0 Build ↔ Audit protocol to GPT design artifacts.
-- Added capability-fit, Knowledge, Action, output-contract, and live-verification gates, plus GPT kickoff and rework templates.
+- Applied the upstream v2.2.0 Build ↔ Audit protocol to GPT design artifacts, not only code patches.
+- Added Builder gates for capability/platform fit, Knowledge governance, Actions/data flows, output contracts, uncertainty, and live-verification limits.
+- Added Auditor attack cases for retrieved-content injection, tool failure, privacy, consequential actions, unsupported capability claims, and output-format collisions.
+- Added GPT-specific kickoff and rework templates, standards, configuration, and a self-application record.
+- Kept protocol objects and JSON Schemas at version 2 for interoperability.
 
-## 2.2.0 and earlier (upstream base)
+## 2.2.0 upstream base
 
-- Repeatable smoke fixtures, an evidence row per criterion, the Builder stop rule for oversized packets, protocol validation for closed-ID reuse and monotonic IDs, evidence-first auditing, the three-audit cap, and JSON Schemas.
+- Made the smoke test repeatable with fixed good/bad source fixtures and a linked three-round audit chain.
+- Required an evidence and result row for every Auditor acceptance criterion.
+- Added a Builder stop rule for packets too large to include completely.
+- Aligned the audit-report task ID pattern with the handoff schema and prohibited round-1 regression rows.
+- Extended protocol validation for fixed example chains, not-verifiable findings, closed-ID reuse, and monotonic new finding IDs.
+
+## 2.1.0 upstream base
+
+- Corrected the Auditor starter so it asks for complete current source; the diff is supplemental.
+- Added explicit handling for conflicts among the request, acceptance criteria, standards, source, and prior reports.
+- Tightened rework stop conditions so each `must_fix` ID has one observable check.
+- Extended the validator to accept generated handoffs and reports, check prior-report chains, and track unresolved rework IDs.
+
+## 2.0.0 upstream base
+
+- Replaced the Auditor's assumed-defect posture with evidence-first adversarial review.
+- Separated build revision from audit round and fixed the cap at three audits total.
+- Distinguished execution environment and verification evidence from code-defect severity.
+- Required complete current source/context in every audit packet and fixed fresh-conversation rework state.
+- Added explicit trust boundaries for untrusted source artifacts and prompt-injection attempts.
+- Defined PASS as limited to supplied scope, not as CI/merge approval.
+- Added JSON Schemas, a calibrated good/bad smoke test, and consistent package paths.

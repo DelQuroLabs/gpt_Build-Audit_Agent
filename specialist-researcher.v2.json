@@ -1,0 +1,44 @@
+{
+  "contract": "specialist-report",
+  "version": 2,
+  "task_id": "stripe-webhook-sketch",
+  "build_revision": 0,
+  "specialist": "researcher",
+  "trigger_reasons": [
+    "kickoff unknowns: webhook signature header name and tolerance"
+  ],
+  "summary": "Synthetic researcher payload: current Stripe requirements were not verified.",
+  "scope_review": {
+    "reviewed_paths": [
+      "src/webhooks/stripe.ts"
+    ],
+    "unavailable_context": [
+      "live Stripe dashboard settings"
+    ]
+  },
+  "findings": [],
+  "non_findings": [
+    "No factual finding is supported without the current primary source and complete target packet."
+  ],
+  "open_questions": [
+    "Confirm current Stripe docs for exact header names in the target API version before marking AC met."
+  ],
+  "recommended_to_auditor": [],
+  "research_brief": {
+    "unknowns_addressed": [
+      "Which header carries the Stripe webhook signature?",
+      "Is a timestamp tolerance required?"
+    ],
+    "facts": [
+      "Unverified: the example assumes a Stripe-Signature header; confirm the header in current official documentation for the target version.",
+      "Unverified: the example assumes SDK timestamp-tolerance behavior; inspect current primary documentation before adopting the assumption."
+    ],
+    "sources": [
+      "Unverified source to inspect: Stripe official webhook signature verification documentation; no retrieval performed."
+    ],
+    "recommendations": [
+      "Use the approved Stripe SDK verification helper if listed in standards.md.",
+      "Record the API version and endpoint secret source (env) in the handoff flags."
+    ]
+  }
+}

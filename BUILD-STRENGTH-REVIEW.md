@@ -1,5 +1,7 @@
 # Build strength review
 
+Historical 3.1.0 review retained for provenance. Current validation and 3.2.0 findings are in `docs/PROMPT-AUDIT.md`; the dependency limitation below describes the earlier environment.
+
 **Review date:** 26 September 2026
 
 ## Scope and rating basis

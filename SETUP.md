@@ -1,76 +1,57 @@
-# Setup guide
+# Setup Guide - GPT Build <-> Audit Pair 3.2.0
 
-This creates two private Custom GPTs for the Build ↔ Audit loop (package 4.0.0-gpt-profile, protocol v3). Editor labels can change; follow the current platform UI. Every instruction file fits the 8,000-character Instructions limit (the package budget is 7,500, enforced in CI).
+This is a manual, human-supervised pair of private agents. The package proposes and audits GPT design artifacts; it does not install a target GPT, run an unattended loop, or publish anything.
 
-## Before starting
+## 1. Check the host
 
-- Keep `prompts/`, `schemas/`, `examples/`, and `specialists/` together.
-- Complete `standards.template.md` and save it as `standards.md`. Write `not specified` for any field you don't need.
-- Never put credentials, private URLs, personal data, or hidden system prompts in Knowledge, examples, or prompts.
-- Decide which capabilities the *target* GPTs you plan to build may use. Start with the minimum.
+Confirm your actual platform supports installing private instructions and loading reference files. Editor labels, availability, and limits are host-dependent; live setup is not verified by this package. If the required features are absent, stop setup or choose a compatible host explicitly. Never truncate a prompt or assume Knowledge was retrieved.
 
-## 1. Create the Builder GPT
+The complete ready-to-paste prompts are in `dist/instructions/`. Paste each file's entire contents, without adding its source files again. All are within this package's conservative 7,500-character budget; verify the host's actual limit too. `gpt-config.json` records the source and installation paths. Tools default off.
 
-| Field | Value |
-|---|---|
-| Name | `GPT Build Engineer` |
-| Description | `builder.description` in `gpt-config.json` |
-| Instructions | Everything below the HTML comment in `builder-gpt.md` |
-| Knowledge | `contract.md`, `builder-reference.md`, `schemas/build-audit-handoff.v3.schema.json`, `standards.md` |
-| Capabilities | Code Interpreter **on** (sandboxed checks). Web Search, Canvas, Image Generation, and Actions **off** |
-| Conversation starters | `builder.conversation_starters` in `gpt-config.json` |
-| Sharing | Only me, unless you share it intentionally |
+## 2. Configure the core pair
 
-The Builder proposes a complete package in its response. It never creates or publishes the target GPT.
+Complete `standards.template.md` as `standards.md`; use `not specified` for optional fields. No credentials or private personal data. Unspecified standards impose no extra requirements.
 
-## 2. Create the Auditor GPT
+| Role | Complete Instructions file | Required references |
+|---|---|---|
+| Builder | dist/instructions/builder.md | contract.md; schemas/build-audit-handoff.v2.schema.json |
+| Auditor | dist/instructions/auditor.md | contract.md; schemas/build-audit-handoff.v2.schema.json; schemas/audit-report.v2.schema.json |
+| Auditor with specialists | same Auditor file | also schemas/specialist-report.v2.schema.json |
 
-| Field | Value |
-|---|---|
-| Name | `GPT Audit Engineer` |
-| Description | `auditor.description` in `gpt-config.json` |
-| Instructions | Everything below the HTML comment in `auditor-gpt.md` |
-| Knowledge | `contract.md`, `auditor-reference.md`, `schemas/audit-report.v3.schema.json`, `schemas/specialist-report.v3.schema.json`, `standards.md` |
-| Capabilities | Code Interpreter **on** (safe, self-contained checks). Web Search, Canvas, Image Generation, and Actions **off** |
-| Conversation starters | `auditor.conversation_starters` in `gpt-config.json` |
-| Sharing | Only me, unless you share it intentionally |
+Use names, descriptions, and starters from `gpt-config.json`. Supply completed standards to both roles. Keep sharing private. Attach references as Knowledge where supported, or supply their complete contents in the session. Before a task, confirm the role can access the required references; otherwise it must return CONFIG REQUIRED.
 
-The Auditor must receive the complete current package in the message. Knowledge files never supply the Builder's current artifacts or a live GPT.
+Leave browsing, execution, Actions, image generation, and Canvas off. Enable an optional tool only for an explicitly authorized review check and supported isolation/limits. A capability requested for the target GPT does not authorize the reviewing agents. Static review is valid and must not be called a live test.
 
-If your policy forbids sandboxed execution, turn Code Interpreter off for both GPTs. They then label checks `static_only`, and character counts become static estimates.
+## 3. Calibrate and operate
 
-## 3. Calibrate
+Run the fixed inputs in `SMOKE-TEST.md` and `evals/README.md`. Retain actual transcripts separately from static package checks. All applicable behavioral cases must pass before sharing a configured instance.
 
-Run `SMOKE-TEST.md` and record the outcomes in a copy of `SMOKE-RESULTS.template.md`. The Auditor must PASS the `good` fixture and FAIL each seeded fixture with the expected finding.
+1. Send `prompts/kickoff.md` to Builder; receive the full revision-0 packet.
+2. Send the entire packet through `prompts/audit-request.md`.
+3. For FAIL on audit 1 or 2, send the complete latest packet, original criteria, and full latest report through `prompts/rework.md`.
+4. Preserve all history, including frozen/minor IDs. Audit 3/revision 2 is final. Use `prompts/escalate.md` if it fails.
+5. Early responses (INPUT REQUIRED, CONFIG REQUIRED, CAPACITY LIMIT, PLAN ONLY, SAFE ALTERNATIVE, ROUND LIMIT) do not consume rounds or emit completed JSON.
+6. Release remains a human decision after live target testing. A model PASS is not deployment approval.
 
-## 4. Use a task
+## 4. Optional specialists
 
-1. Fill in `prompts/kickoff.md` (criteria with `kind` and `evidence_required`) and send it to the Builder.
-2. Paste the Builder's entire response into `prompts/audit-request.md` and send it to the Auditor.
-3. On a FAIL at audit 1 or 2, paste the latest complete package and report into `prompts/rework.md`. Never restart from revision 0.
-4. Audit 3 is final. If it still FAILs, use `prompts/escalate.md` and make the human decision.
-5. Before release, run the target GPT's evals on the configured GPT, review data flows, and get human approval.
+Use `specialists/TRIGGERS.md`; choose only useful roles, usually at most two. The complete prompts in `dist/instructions/{security,ux,perf,data,release,researcher}.md` already include `specialists/common.md`. Do not install a role source by itself.
 
-## 5. Optional specialists (off by default)
+Each specialist requires `contract.md` and `schemas/specialist-report.v2.schema.json`. Use the same complete Builder packet/task/revision. Feed its advisory report to the Auditor through `prompts/audit-request-with-specialists.md`, including the previous full report on later rounds. Specialists never own the verdict or assign F IDs.
 
-Create a specialist GPT only when a signal in `specialists/TRIGGERS.md` matches, usually no more than two per revision.
+Researcher browsing needs an authorized public-source question and host support; otherwise facts remain Unverified. No private packet text in searches. Other specialist tools remain off.
 
-| Field | Value |
-|---|---|
-| Instructions | Everything below the HTML comment in `specialists/<role>-gpt.md` (each file is self-contained) |
-| Knowledge | `contract.md`, `schemas/specialist-report.v3.schema.json` |
-| Capabilities | All off. The Researcher may enable Web Search when current external facts are required. |
+## 5. Local verification and maintenance
 
-Send each specialist the full Builder packet using `prompts/specialist-request.md`, then attach the complete reports with `prompts/audit-request-with-specialists.md`. The Auditor alone issues the verdict.
-
-## 6. Local validation (optional)
-
-From the package root:
+Python 3.10+ is required for the scripts. From the repository root:
 
 ```sh
 python -m pip install -r tools/requirements.txt
+python tools/package_instructions.py --check
 python tools/validate_examples.py
-python tools/check_package.py
+python -m unittest discover -s tests -v
 ```
 
-The validator checks schemas, cross-field rules, and the fixture chain. The package check verifies instruction budgets, seeded-fixture integrity, configuration references, version consistency, and file references. Neither tool proves live GPT behavior; `SMOKE-TEST.md` covers that.
+To edit prompts, change the source files named in `gpt-config.json`, then run `python tools/package_instructions.py`; commit source and generated files together. Never edit generated installation files alone. Changes to the positive GPT fixture require `python tools/build_calibration.py` to regenerate its one-defect companion.
+
+The validator checks protocol objects and history, not agent judgment or live behavior. Supply `--previous-report prior.json` for later audit reports. Older v2 packets with incomplete frozen/minor history need correction; field shapes remain v2. Preserve prior artifacts and transcripts for rollback and repeat the live evals after host or prompt changes.
