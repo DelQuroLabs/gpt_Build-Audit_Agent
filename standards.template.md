@@ -1,6 +1,6 @@
-# GPT Project Standards (template)
+# GPT project standards (template)
 
-Complete this file and save it as `standards.md` before attaching it to the Auditor. Replace unanswered fields with `not specified` or remove them. Only concrete, documented standards are enforceable.
+Complete this file and save it as `standards.md` before attaching it to the Builder and Auditor. Write `not specified` for any field you don't need. Only concrete, written standards are enforceable. Never include secrets or personal data.
 
 ## Product identity
 
@@ -19,9 +19,15 @@ Complete this file and save it as `standards.md` before attaching it to the Audi
 - Required uncertainty/citation behavior:
 - Required human escalation behavior:
 
+## Acceptance evidence
+
+- Criteria that require a transcript or executed check (`evidence_required: true`):
+- Accepted evidence sources (for example, shared-chat links, exported transcripts):
+
 ## Platform and capabilities
 
 - Model/platform assumptions:
+- Instructions length limit (Custom GPT default: 8,000 characters):
 - Browsing/Web Search allowed:
 - File uploads/Knowledge allowed:
 - Memory/background behavior allowed:
@@ -71,6 +77,6 @@ Complete this file and save it as `standards.md` before attaching it to the Audi
 
 - Change log location:
 - How Knowledge updates are reviewed:
-- How Actions/schema changes are reviewed:
+- How Action/schema changes are reviewed:
 - Rollback procedure:
-- Maximum acceptable review rounds:
+- Maximum review rounds (protocol maximum: 3):

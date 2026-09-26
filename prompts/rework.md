@@ -1,27 +1,27 @@
-# Rework request — only after FAIL on audit 1 or 2
+# Rework request (only after FAIL on audit 1 or 2)
 
-Paste the Auditor's entire latest response below, including its JSON. In the same message, provide the **latest complete current artifact snapshot** from the previous Builder response. If using a new Builder conversation, also include the original spec/acceptance criteria, platform standards, and the current finding-status ledger. Never restart from round-0 artifacts after changes have been made.
+Paste the Auditor's entire latest response, including its JSON. In the same message, paste the **latest complete artifact snapshot** from the previous Builder response. In a new Builder conversation, also include the original kickoff, the standards, and the finding-status ledger. Never restart from revision-0 artifacts after changes have been made.
 
 ---
 
-Fix only IDs in `rework_brief.must_fix`. Do not change `frozen` IDs or unrelated artifacts. Confirm the task ID, prior build revision, and audit round; increment `build_revision` by one. If the current snapshot or required context is missing or stale, ask for it instead of guessing. Preserve unresolved `deferred` and `not_verifiable` items. Demonstrate each fix honestly with an eval, artifact evidence, or static explanation. Return complete current contents for every changed artifact and a `build-audit-handoff` v2 JSON block.
+Fix only the IDs in `rework_brief.must_fix`. Do not change `frozen` IDs or unrelated artifacts. Confirm the task ID, prior build revision, and audit round, then increment `build_revision` by one. Set handoff `addresses` to exactly the `must_fix` IDs. If the snapshot or required context is missing or stale, reply with `## Input needed` instead of guessing. Preserve unresolved `deferred` and `not_verifiable` items. Report any regression you find in `flags` as `regression: <description>`; the Auditor assigns IDs. Demonstrate each fix honestly with an eval, artifact evidence, or a static explanation. Return complete contents of every changed artifact and a `build-audit-handoff` v3 JSON block.
 
-## Latest complete current artifact snapshot
+## Latest complete artifact snapshot
 
-<paste every current artifact required for review here>
+<paste every current artifact required for review>
 
-## Original spec and acceptance criteria (required when starting a new conversation)
+## Original kickoff (required in a new conversation)
 
-<paste original kickoff fields here>
+<paste the original kickoff fields>
 
-## Platform/project standards
+## Standards
 
-<paste the completed standards or say `not specified`>
+<paste the completed standards.md, or write `not specified`>
 
-## Finding-status ledger (required when starting a new conversation)
+## Finding-status ledger (required in a new conversation)
 
-<list every prior finding ID as fixed/open/deferred/not-verifiable/overruled, with evidence>
+<list every prior finding ID as fixed / open / deferred / not_verifiable / overruled, with evidence>
 
 ## Latest Auditor report
 
-<paste complete Auditor response here>
+<paste the complete Auditor response>

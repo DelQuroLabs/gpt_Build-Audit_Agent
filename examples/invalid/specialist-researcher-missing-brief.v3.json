@@ -1,0 +1,30 @@
+{
+  "contract": "specialist-report",
+  "version": 3,
+  "task_id": "requirements-brief-gpt",
+  "build_revision": 0,
+  "specialist": "researcher",
+  "trigger_reasons": [
+    "AC7 depends on the current Custom GPT Instructions character limit (an external platform fact)"
+  ],
+  "summary": "The 8,000-character Instructions limit that the Builder relies on is supported by the editor's quoted error message; no assumption error was found.",
+  "scope_review": {
+    "reviewed_paths": [
+      "instructions.md",
+      "gpt-config.json",
+      "behavior-contract.md",
+      "evals/cases.md"
+    ],
+    "unavailable_context": []
+  },
+  "findings": [],
+  "non_findings": [
+    "The Builder's 8,000-character figure matches the cited source.",
+    "The 2,057-character instructions are well under the limit."
+  ],
+  "open_questions": [
+    "Re-check the limit if the GPT editor changes; platform limits are not versioned."
+  ],
+  "recommended_to_auditor": [],
+  "research_brief": null
+}

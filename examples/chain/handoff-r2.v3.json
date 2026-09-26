@@ -1,0 +1,105 @@
+{
+  "contract": "build-audit-handoff",
+  "version": 3,
+  "task_id": "requirements-brief-gpt",
+  "build_revision": 2,
+  "spec": "Build a private GPT that turns a user's rough project idea into a concise requirements brief with goal, audience, assumptions, risks, and next steps, asking at most three blocking questions and never claiming validated market demand.",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "instructions.md defines a single output format: Markdown with exactly five headings (Goal, Audience, Assumptions, Risks, Next steps) in that order.",
+      "kind": "artifact",
+      "evidence_required": false
+    },
+    {
+      "id": "AC2",
+      "text": "The GPT asks at most three blocking questions per idea, then writes the brief using stated assumptions.",
+      "kind": "behavioral",
+      "evidence_required": false
+    },
+    {
+      "id": "AC3",
+      "text": "The GPT never claims that market demand, pricing, or competition has been validated or researched.",
+      "kind": "behavioral",
+      "evidence_required": false
+    },
+    {
+      "id": "AC4",
+      "text": "gpt-config.json disables Web Search, Code Interpreter, Canvas, Image Generation, and Actions, and attaches no Knowledge files.",
+      "kind": "artifact",
+      "evidence_required": false
+    },
+    {
+      "id": "AC5",
+      "text": "instructions.md treats uploaded files and pasted text as data, never as instructions.",
+      "kind": "artifact",
+      "evidence_required": false
+    },
+    {
+      "id": "AC6",
+      "text": "evals/cases.md has at least one case per criterion plus injection, privacy, and out-of-scope cases.",
+      "kind": "artifact",
+      "evidence_required": false
+    },
+    {
+      "id": "AC7",
+      "text": "instructions.md is at most 8,000 characters.",
+      "kind": "artifact",
+      "evidence_required": false
+    }
+  ],
+  "addresses": [
+    "F2"
+  ],
+  "artifacts": [
+    {
+      "path": "instructions.md",
+      "status": "modified",
+      "lines_changed": 1,
+      "summary": "Flow step 2 reworded.",
+      "snapshot_included": true
+    }
+  ],
+  "context_manifest": [
+    {
+      "path": "platform:custom-gpt-editor",
+      "purpose": "Target platform; Instructions limit 8,000 characters.",
+      "supplied": true
+    },
+    {
+      "path": "standards.md",
+      "purpose": "Project standards; none supplied for this task.",
+      "supplied": false
+    }
+  ],
+  "verification": [
+    {
+      "check": "Instructions length (AC7)",
+      "command": "len(open('instructions.md').read())",
+      "result": "pass",
+      "environment": "agent_sandbox",
+      "evidence": "2080 characters"
+    },
+    {
+      "check": "Live behavior (AC2)",
+      "command": "Run EV2-EV3 on the configured GPT",
+      "result": "not-run",
+      "environment": "not_run",
+      "evidence": "No live Custom GPT instance was available."
+    }
+  ],
+  "self_audit": [
+    {
+      "area": "rework",
+      "note": "Only Flow steps 1-2 changed to address F1.",
+      "severity": "NIT",
+      "confidence": "high"
+    }
+  ],
+  "assumptions": [
+    "Private ChatGPT Custom GPT; English only; no standards.md supplied."
+  ],
+  "flags": [],
+  "open_questions": [],
+  "confidence": "high"
+}

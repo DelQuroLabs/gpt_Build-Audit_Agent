@@ -1,66 +1,22 @@
-# Self-audit record — GPT Build ↔ Audit pair
+# Self-audit record: 4.0.0-gpt-profile
 
-## Method
+This folder holds the package's own Build ↔ Audit record for task `gpt-build-audit-pair`:
 
-I used the upstream DelQuroLabs package as the protocol baseline, then treated the resulting pair as a build artifact and audited it against a GPT-specific spec. I did not treat the Builder's self-audit as approval. The retained validator was run locally:
+| File | What it is |
+|---|---|
+| `build-handoff.v3.json` | The v3 handoff describing this release (revision 0, criteria AC1–AC6) |
+| `audit-report.v3.json` | The v3 audit report for that handoff (verdict `PASS`, *Static-only: 2 of 6 criteria not verifiable*) |
 
-```text
-Validated 6 bundled examples and 4 expected-rejection fixtures against Draft 2020-12 schemas and protocol cross-field rules.
-```
+Both files are validated in CI by `tools/validate_examples.py` through `examples/manifest.json`.
 
-## Iteration 0 — baseline review
+## How it was produced (read this before relying on it)
 
-The upstream v2.2.0 package was already strong on:
+- **Not an independent live GPT audit.** The report was written by an external prompt audit of the whole repository using a separate auditor specification. It ran over four iterations, scoring 75 → 89 → 95 → 100 on that specification's 10-dimension rubric; the reports live outside this repository. The package checks were executed in a sandbox. It was **not** produced by a configured GPT Audit Engineer instance, and the package authors should treat it as context, not as release evidence.
+- **Executed evidence.** `python tools/validate_examples.py` (23 positive and 15 expected-rejection cases) and `python tools/check_package.py` (instruction budget, fixture integrity, configuration, versions, stale and path references, specialist self-containment) both passed. Each negative case was confirmed to fail only for its stated reason.
+- **Not verifiable yet.** AC5 (the Auditor PASSes the good fixture and FAILs each seeded fixture) and AC6 (the configured Builder and Auditor ignore the S4 injection line and do not reveal their instructions) are *behavioral* criteria. Under the v3 rules they stay `not_verifiable` until someone runs `SMOKE-TEST.md` on real GPTs and records the results in `SMOKE-RESULTS.md`.
 
-- complete current snapshots rather than diff-only review;
-- evidence-first findings and honest `not-run`/`static_only` labels;
-- prompt-injection boundaries around submitted artifacts;
-- finding ID continuity and a three-audit cap;
-- machine-readable handoff and audit schemas;
-- calibrated good/bad fixtures and validator coverage.
+## To complete the record
 
-The audit identified five gaps for the requested GPT-builder use case:
-
-1. The instructions were optimized for source-code patches, not GPT instruction/configuration/Knowledge/Action/eval artifacts.
-2. Capability claims such as browsing, memory, Actions, background work, and live testing needed an explicit platform-fit gate.
-3. The Auditor needed a fixed attack set for Knowledge injection, Action failure, privacy, uncertainty, output collisions, and unsupported live claims.
-4. The package needed GPT-specific kickoff, standards, configuration, and release guidance.
-5. Static prompt review needed to be kept separate from live GPT behavior verification.
-
-## Iteration 1 — Builder improvement
-
-The Builder was revised to:
-
-- normalize audience, job, inputs, outputs, non-goals, platform, Knowledge, Actions, safety, and evaluation requirements;
-- produce a behavior contract, capability matrix, instruction architecture, Knowledge plan, Action plan, and eval suite;
-- keep stable policy in instructions, project facts in Knowledge, and task data in user/runtime context;
-- require complete snapshots of GPT-specific artifacts;
-- preserve current state and finding IDs during rework;
-- label live behavior as unverified when no live instance exists.
-
-## Iteration 2 — Auditor improvement
-
-The Auditor was revised to independently test:
-
-- normal and boundary inputs;
-- ambiguity and conflicting requirements;
-- prompt injection in Knowledge and tool output;
-- secrets, private data, and unauthorized/consequential actions;
-- unavailable, slow, or partially successful tools;
-- hallucination pressure, citations, uncertainty, and output contracts;
-- regression against must-fix, deferred, and frozen findings.
-
-It also keeps `not verifiable` as a scope status instead of automatically turning missing runtime output into a defect.
-
-## Final audit result
-
-The final audit report is `audit-pass.v2.json`.
-
-- Verdict: `PASS` for the supplied scope.
-- Verification: static artifact review plus validated protocol fixtures.
-- Remaining limits: no completed project-specific `standards.md`, no live Custom GPT instances, and no live platform transcripts.
-- Release decision: human testing and approval are still required.
-
-## What “best” means here
-
-“Best” is defined operationally, not as a claim of perfect model behavior: the pair is explicit about scope, hard to game with embedded instructions, traceable across rework, adversarial without inventing defects, honest about evidence, and directly testable against the target GPT's observable behavior.
+1. Configure both GPTs per `SETUP.md`.
+2. Run S1–S7 in `SMOKE-TEST.md` and fill in a copy of `SMOKE-RESULTS.template.md` as `SMOKE-RESULTS.md`.
+3. If every scenario passes, update the AC5/AC6 rows in `audit-report.v3.json` to `met` with `transcript` evidence and remove the `Static-only` prefix, then re-run `python tools/validate_examples.py`.

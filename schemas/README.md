@@ -1,9 +1,11 @@
-# JSON Schemas
+# JSON Schemas (protocol v3)
 
-These files define the v2 JSON objects emitted at the end of each agent response:
+These schemas define the JSON object at the end of each agent response. All use JSON Schema Draft 2020-12.
 
-- `build-audit-handoff.v2.schema.json` — Builder output
-- `audit-report.v2.schema.json` — Auditor output
-- `specialist-report.v2.schema.json` — optional advisory specialist output; it does not change either core v2 contract
+| Schema | Emitted by |
+|---|---|
+| `build-audit-handoff.v3.schema.json` | Builder: criteria objects, `addresses`, artifacts, verification |
+| `audit-report.v3.schema.json` | Auditor: verdict, `acceptance_check`, findings, regression, rework/escalation |
+| `specialist-report.v3.schema.json` | Optional specialists: advisory `S` findings and the researcher brief |
 
-Both use JSON Schema Draft 2020-12. The optional `tools/validate_examples.py` validator checks key cross-field rules, including finding tracking, one-to-one stop conditions, no round-1 regression rows, and (when given `--previous-report`) task, revision, round, and finding-status continuity. It also checks closed-ID reuse and monotonic new IDs when the supplied report history permits. The normative rules remain in `../contract.md`.
+The schemas express single-object rules (for example: a PASS has no `not_met` row, a behavioral `met` needs transcript or executed evidence, revision 0 has empty `addresses`). `tools/validate_examples.py` adds the cross-object rules: one acceptance row per handoff criterion, the `evidence_required` → FAIL rule, the `Static-only` summary prefix, rework tracking, previous-report continuity, closed-ID reuse, monotonic IDs, `addresses` = prior `must_fix`, and specialist task/revision matching. The normative prose is in `../contract.md`.

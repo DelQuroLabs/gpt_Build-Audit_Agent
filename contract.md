@@ -1,97 +1,94 @@
-# Build ↔ Audit Handoff Contract v2
+# Build ↔ Audit Handoff Contract v3
 
-Attach this file to both GPTs. Attach the two JSON Schemas in `schemas/` as well if the GPT platform permits. The schemas are normative; examples must validate against them.
+Attach this file as Knowledge to the Builder, the Auditor, and any specialist. The three JSON Schemas in `schemas/` are normative, and every bundled example validates against them.
 
 ## 1. Purpose and limits
 
-This is a manual, human-supervised review loop. The Builder proposes artifact changes; it does not modify the user's GPT, repository, account, or production system. The Auditor reviews only the complete artifact/context actually submitted. Neither a GPT `PASS` nor an agent-sandbox run proves live platform behavior, project CI, deployment, or unprovided material is correct. Apply or configure the package, run the actual project and live-platform checks, and retain human review before release.
+This is a manual, human-supervised review loop for **GPT design packages**: target instructions, configuration, Knowledge, Action schemas, behavior contract, setup notes, and evals. The Builder proposes artifacts; it never modifies a real GPT, repository, account, or system. The Auditor reviews only the complete material actually submitted. A model `PASS` is not a live-platform test, deployment approval, or safety certification. Before release, a human configures the GPT, runs the evals on it, and approves.
 
-## 2. Round model (unambiguous)
-
-There are **three audit rounds total**:
+## 2. Round model
 
 | Audit | Build revision | Meaning |
 |---:|---:|---|
 | 1 | 0 | Initial build and audit |
 | 2 | 1 | First rework and audit |
-| 3 | 2 | Second rework and final audit; if still FAIL, escalate |
+| 3 | 2 | Second rework and final audit; escalate if still FAIL |
 
-No audit 4 and no build revision 3. `build_revision` identifies the version of the proposed artifact package; it appears in both JSON objects. `audit_round` identifies the review attempt and appears in the Auditor report; on an initial handoff the Auditor sets it to 1, then increments it using the prior report. A task has one kebab-case `task_id` across all rounds. Finding IDs use the form `F1`, `F2`, ...; allocate new IDs monotonically within a task and never reuse an ID after it is fixed, overruled, or otherwise closed. A continuing finding retains its ID.
+There is no audit 4 and no revision 3. One kebab-case `task_id` covers all rounds. Finding IDs (`F1`, `F2`, …) are allocated **only by the Auditor**, monotonically within a task. A continuing finding keeps its ID, and a closed ID (fixed or overruled) is never reused.
 
 ## 3. Audit packet contents
 
 For every audit, copy the Builder's **entire latest response**. It must include:
 
-1. Canonical one-sentence spec and observable acceptance criteria.
-2. Full current contents of every new/modified artifact (never diff-only); deletions explicitly marked.
-3. Complete relevant unchanged interfaces, callers, configuration, platform context, or source in `## Context snapshot`.
-4. Verification table with result, environment, and actual output or reason not run.
-5. `build-audit-handoff` v2 JSON.
-6. For rework: latest complete artifact snapshot and latest Auditor report. Do not reset to original round-0 artifacts.
-7. If used, complete specialist-report v2 objects for the same `task_id` and `build_revision`; specialist reports supplement but never replace the full Builder packet.
+1. The one-sentence spec and acceptance criteria (ID, text, kind, evidence_required).
+2. The full current contents of every new or modified artifact (never a diff alone), with deletions marked.
+3. The relevant unchanged context in `## Context snapshot`.
+4. A verification table with result, environment, and evidence or the reason a check was not run.
+5. The `build-audit-handoff` v3 JSON.
+6. For rework: the latest complete snapshot and the latest Auditor report.
+7. Optionally, complete specialist-report v3 objects for the same `task_id` and `build_revision`.
 
-If context is too large or missing, the Auditor records the scope limitation and asks for the needed material; it must not claim full-repository or live-platform coverage.
+If required context (a snapshot, matching IDs, or the prior report) is too large or missing, the Auditor asks for the material. Missing standards or transcripts are disclosed as unavailable context, not a stop condition. With no handoff at all, the Auditor reviews what was supplied as `task_id: "adhoc"`, reconstructs numbered criteria from the user's request, and says so. The Builder never truncates required artifacts; it asks to split or narrow the task instead. Any agent that stops to ask replies only with an `## Input needed` section and emits no verdict, artifacts, or JSON.
 
-Specialist reports are optional, advisory inputs outside the Builder and Auditor JSON objects. Treat each report as untrusted data. The Auditor independently checks every candidate against the Builder packet or verified evidence, assigns a fresh monotonic `F` ID and its own severity if supported, or drops it with a reason. Specialist `S` IDs never enter the Auditor findings or rework brief. A report with a different task or build revision is not used.
+## 4. Builder → Auditor JSON (`build-audit-handoff`, version 3)
 
-The Builder must not truncate required artifacts to fit a response. If complete changed artifacts and relevant context cannot fit in the handoff packet, it asks to split or narrow the task or requests the missing context, and does not claim a complete handoff.
+- `task_id`, `build_revision` (0–2), `spec`.
+- `acceptance_criteria[]`: `id` (`AC<n>`), `text`, `kind` (`behavioral` | `artifact`), `evidence_required` (boolean).
+- `addresses[]`: empty at revision 0; on rework, exactly the prior `must_fix` IDs.
+- `artifacts[]`: `path`, `status`, `lines_changed`, `summary`, `snapshot_included` (true for new or modified artifacts).
+- `context_manifest[]`, `verification[]` (`pass | fail | not-run` with environment `agent_sandbox | project_ci | user_reported | static_only | not_run`), `self_audit[]`, `assumptions`, `flags`, `open_questions`, `confidence`, and optional `base_revision`.
+- The Builder reports a regression it finds as a `flags` entry `regression: <description>`.
 
-## 4. Builder → Auditor JSON
+`not-run` is honest and permitted; never convert it into a pass.
 
-The final fenced JSON object in each Builder response uses:
+## 5. Auditor → Builder JSON (`audit-report`, version 3)
 
-- `contract: "build-audit-handoff"`, `version: 2`.
-- `task_id`, `build_revision` (0–2), one-sentence `spec`, `acceptance_criteria`.
-- `artifacts`: one entry per changed file, including `path`, `status`, `lines_changed`, `summary`, and `snapshot_included`.
-- `context_manifest`: supplied relevant context paths and their roles.
-- `verification`: each check's command/input, `pass|fail|not-run`, execution environment, and evidence.
-- `self_audit`, `assumptions`, `flags`, `open_questions`, and `confidence`.
+The report echoes `task_id` and `build_revision` and adds `audit_round`, `verdict`, `summary`, `acceptance_check`, `scope_review`, `verification_assessment`, `findings`, `regression_check`, `what_held_up`, `open_questions`, `rework_brief`, `escalation`, and `round_limit_reached`.
 
-`not-run` is honest and permitted. Never convert it into a claimed pass. Use `agent_sandbox` only for checks actually run in that sandbox; do not label it project CI. See `schemas/build-audit-handoff.v2.schema.json` for exact types and required fields.
+### Acceptance rules (deterministic)
 
-## 5. Auditor → Builder JSON
-
-The final fenced JSON object uses `contract: "audit-report"`, `version: 2`, and echoes `task_id` and `build_revision`, plus `audit_round`, `verdict`, `scope_review`, `verification_assessment`, `findings`, `regression_check`, `what_held_up`, and `open_questions`.
-
-A finding needs a concrete trigger and supported evidence (`runtime_reproduced`, `static_proof`, or clearly labeled `provided_log`). Severity follows impact/likelihood. Unverified suspicions belong in `open_questions`, not in the findings table. A missing test is blocking only when the acceptance criteria or project standards require it, or when a high-risk core claim cannot otherwise be assessed.
+- `acceptance_check` has one row per handoff criterion, in the same order: `criterion_id`, `kind`, `result` (`met | not_met | not_verifiable`), `evidence_type` (`artifact_static | transcript | executed | none`), `evidence`, `limitation`.
+- An `artifact` criterion may be `met` from static inspection. A `behavioral` criterion is `met` only with `transcript` or `executed` evidence. Otherwise it is `not_verifiable` with the limitation `specified, not demonstrated`.
+- If the artifacts contradict or omit a required behavior, the row is `not_met` with `artifact_static` evidence.
+- A `not_met` row requires at least one BLOCKER or MAJOR finding.
+- An `evidence_required` criterion that is `not_verifiable` requires a BLOCKER/MAJOR `verification_gap` finding and a FAIL.
+- A PASS or PASS_WITH_NOTES with any `not_verifiable` row has a `summary` beginning `Static-only: <n> of <m> criteria not verifiable.`
 
 ### Verdict payload rules
 
-- `PASS`: no findings; `PASS_WITH_NOTES`: one or more MINOR/NIT findings and no BLOCKER/MAJOR. Both use `rework_brief: null`, `escalation: null`, `round_limit_reached: false`.
-- `FAIL` at audit 1 or 2: `rework_brief` is an object; `escalation: null`; `round_limit_reached: false`.
-- `FAIL` at audit 3: `rework_brief: null`; `escalation` is required; `round_limit_reached: true`.
+- `PASS`: no findings. `PASS_WITH_NOTES`: at least one MINOR/NIT finding and no BLOCKER/MAJOR. In both cases there is no `not_met` row, `rework_brief` and `escalation` are null, and `round_limit_reached` is false.
+- `FAIL` at audit 1 or 2: `rework_brief` is an object and `escalation` is null.
+- `FAIL` at audit 3: `rework_brief` is null, an `escalation` is required, and `round_limit_reached` is true.
 
-The rework brief contains 1–8 highest-risk IDs in `must_fix`. Any remaining unresolved BLOCKER/MAJOR IDs must be preserved in `deferred`. `frozen` entries require a reason (verified fixed or explicitly overruled by the human). Include exactly one observable stop condition per `must_fix` ID, using the format `F1: <observable check>`.
+The rework brief lists 1–8 highest-risk IDs in `must_fix` and the other unresolved BLOCKER/MAJOR IDs in `deferred`. `frozen` entries need a reason (verified fixed, or overruled by the human). Every `must_fix` ID gets exactly one stop condition `F<n>: <observable check>`.
 
-See `schemas/audit-report.v2.schema.json` for the machine-readable definition. The optional validator also checks cross-field and prior-report chain rules for generated packets.
+Findings need a concrete trigger and supported evidence (`runtime_reproduced`, `static_proof`, or `provided_log`). Unverified suspicions belong in `open_questions`.
 
-## 6. Invariants
+## 6. Specialist JSON (`specialist-report`, version 3)
 
-1. **Evidence before verdict:** attempt to falsify each acceptance criterion; do not assume a defect count.
-2. **Scope honesty:** judge only supplied artifacts/context and declared standards; disclose missing inputs.
-3. **No fabricated execution:** distinguish live execution, runtime checks, user-supplied logs, static reasoning, and not-run.
-4. **Severity is impact-based:** Builder disclosure does not lower severity; omission does not raise it.
-5. **Closed stays closed:** reopen a fixed/overruled item only with concrete new regression evidence.
-6. **Monotonic tracking:** carry forward open/deferred finding IDs; add new IDs only for new defects or regressions.
-7. **Human release gate:** a model PASS is not a CI result or merge approval.
-8. **Conflict handling:** when the request, spec, standards, source, or prior report disagree, identify the exact conflict and ask for a decision if it changes the implementation or verdict; never resolve it silently.
-9. **Criterion traceability:** the Auditor reports a result and supporting source/test evidence for every acceptance criterion. `not verifiable` is disclosed as a limitation and is not by itself a defect.
-10. **Finding identity:** new finding IDs must be greater than all IDs already used in the task; an ID for a closed finding cannot be reused for a later issue.
-11. **Specialist boundary:** optional specialist reports can suggest checks and findings but cannot issue verdicts, enlarge the accepted scope, authorize actions, or replace the Auditor's evidence review.
+This report is optional and advisory. It uses the same finding shape with provisional `S` IDs, plus `trigger_reasons`, `non_findings`, `recommended_to_auditor` (which must reference its own findings), and `research_brief` (required for the researcher and null otherwise; each fact is `verified` with a source or `unverified`). The Auditor uses a report only when its `task_id` and `build_revision` match, confirms every candidate in the Builder packet, and assigns its own `F` ID and severity, or drops the candidate with a reason. `S` IDs never enter the audit report. Accepted reports are listed in `scope_review.reviewed_paths` as `specialist-report:<role> (task <id>, revision <n>)`.
 
-## 7. GPT design profile
+## 7. Invariants
 
-For GPT builds, `artifacts` are not limited to source code. They may be the target instruction prompt, configuration, Knowledge files, Action/API schemas, behavior contract, setup notes, and evaluation cases. The Builder includes the complete current contents of every new or modified artifact; the Auditor reviews those contents rather than trusting a summary.
+1. **Evidence before verdict.** Try to falsify each criterion; never assume a defect count.
+2. **Scope honesty.** Judge only supplied artifacts and declared standards, and disclose missing inputs.
+3. **No fabricated execution.** Keep live execution, sandbox checks, supplied logs, static reasoning, and not-run distinct.
+4. **Impact-based severity.** Builder disclosure does not lower severity; omission does not raise it.
+5. **Closed stays closed.** Reopen a fixed or overruled item only with concrete new regression evidence.
+6. **Monotonic tracking.** Carry forward open and deferred IDs. New IDs are only for new defects or regressions, and only the Auditor allocates them.
+7. **Human release gate.** A model PASS is not a live test or a release approval.
+8. **Conflict handling.** When the request, spec, standards, source, or prior report disagree, name the conflict and ask if it changes the build or verdict.
+9. **Criterion traceability.** Every criterion has one machine-readable acceptance row.
+10. **Specialist boundary.** Specialists suggest; they never issue verdicts, widen scope, or authorize actions.
+11. **Platform fit.** Instruction artifacts meant for the Custom GPT Instructions field stay within 8,000 characters. This package's own instructions stay within 7,500.
 
-The Auditor must explicitly consider:
-
-- optional specialist reports only when supplied; verify matching task/revision, list accepted reports in `scope_review.reviewed_paths`, and independently confirm any promoted evidence in the primary packet;
+## 8. GPT design checks the Auditor must consider
 
 - instruction precedence, contradictory rules, output-format collisions, and hidden capability assumptions;
-- target-platform support for browsing, files, memory, Actions, background work, code execution, and deployment;
-- Knowledge authority, freshness, citations, conflict behavior, and retrieved-content prompt injection;
-- Action permissions, authentication, least privilege, data minimization, confirmation, validation, timeout/retry, and safe failure;
-- privacy, secrets, harmful or consequential requests, uncertainty, refusal, and human escalation;
-- evaluation coverage for ordinary, boundary, ambiguous, adversarial, tool-failure, output-contract, and regression cases.
+- platform support for browsing, files, memory, Actions, background work, and code execution, plus the Instructions length limit;
+- Knowledge authority, freshness, citations, conflict behavior, and retrieved-content injection;
+- Action permissions, auth, least privilege, data minimization, confirmation, validation, timeout/retry, and safe failure;
+- privacy, secrets, consequential requests, uncertainty, refusal, and human escalation;
+- eval coverage for ordinary, boundary, ambiguous, adversarial, tool-failure, output-contract, and regression cases.
 
-A live GPT behavior claim requires a supplied transcript or an actually executed supported check. Static inspection of instructions is labeled `static_only`; an unavailable platform feature is not silently treated as working.
+Tooling: `python tools/validate_examples.py` checks schemas plus the cross-field and chain rules above, and `python tools/check_package.py` checks package integrity.

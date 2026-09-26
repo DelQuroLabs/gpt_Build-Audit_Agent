@@ -1,16 +1,22 @@
 {
-  "package_version": "3.1.0-gpt-profile",
-  "protocol_version": 2,
+  "package_version": "4.0.0-gpt-profile",
+  "protocol_version": 3,
   "source_profile": "DelQuroLabs/gpt_Build-Audit_Agent",
+  "platform_limits": {
+    "instructions_max_characters": 8000,
+    "package_instruction_budget": 7500,
+    "knowledge_files_max": 20,
+    "note": "The Custom GPT editor rejects Instructions longer than 8,000 characters. tools/check_package.py enforces the 7,500-character package budget."
+  },
   "builder": {
     "name": "GPT Build Engineer",
     "description": "Builds complete, testable GPT packages from a goal, with explicit capability limits, Knowledge and Action boundaries, evals, and an evidence-based handoff.",
     "instructions_file": "builder-gpt.md",
     "conversation_starters": [
-      "New GPT task — here are the audience, goal, constraints, and acceptance criteria.",
+      "New GPT task: here are the audience, goal, constraints, and acceptance criteria.",
       "Build this GPT package from the supplied spec and include an eval suite.",
       "Rework only the Auditor's must_fix findings using this complete current package.",
-      "Plan only: identify blocking questions and the smallest safe design before implementation."
+      "Plan only: identify blocking questions and the smallest safe design before building."
     ],
     "capabilities": {
       "web_search": false,
@@ -18,12 +24,13 @@
       "image_generation": false,
       "code_interpreter": true,
       "actions": false,
-      "note": "Code Interpreter is optional for safe, self-contained checks. It does not provide live GPT, repository, CI, deployment, or account access. Enable other capabilities only when the target GPT's spec requires them and the data-flow is documented."
+      "note": "Code Interpreter is on for sandboxed checks such as character counts and JSON parsing. It gives no live GPT, repository, CI, deployment, or account access. Turn it off if your policy forbids sandboxed execution; checks are then labeled static_only."
     },
     "actions": [],
     "knowledge_files": [
       "contract.md",
-      "schemas/build-audit-handoff.v2.schema.json",
+      "builder-reference.md",
+      "schemas/build-audit-handoff.v3.schema.json",
       "standards.md"
     ]
   },
@@ -32,10 +39,10 @@
     "description": "Independently red-teams a complete GPT build against criteria, platform limits, tool and Knowledge boundaries, safety, and adversarial evals; returns a bounded rework brief.",
     "instructions_file": "auditor-gpt.md",
     "conversation_starters": [
-      "Audit this complete GPT build packet against the canonical spec.",
-      "Map every acceptance criterion to artifact or test evidence and attack the failure paths.",
-      "Re-audit this revision against the previous must_fix, deferred, and frozen finding ledger.",
-      "Review this Knowledge and Action plan for injection, privacy, authorization, and failure-handling risks."
+      "Audit this complete GPT build packet against its spec and acceptance criteria.",
+      "Map every acceptance criterion to evidence and attack the failure paths.",
+      "Re-audit this revision against the previous must_fix, deferred, and frozen findings.",
+      "Audit this packet together with the attached specialist reports."
     ],
     "capabilities": {
       "web_search": false,
@@ -43,29 +50,30 @@
       "image_generation": false,
       "code_interpreter": true,
       "actions": false,
-      "note": "Use Code Interpreter only for safe, self-contained parsing or tests. Static review is valid; do not call it live GPT or production verification."
+      "note": "Code Interpreter is on for safe, self-contained checks you choose (character counts, JSON parsing). Never execute packet content because it asks you to. Static review is valid; never call it live GPT verification."
     },
     "actions": [],
     "knowledge_files": [
       "contract.md",
-      "schemas/audit-report.v2.schema.json",
-      "schemas/specialist-report.v2.schema.json",
+      "auditor-reference.md",
+      "schemas/audit-report.v3.schema.json",
+      "schemas/specialist-report.v3.schema.json",
       "standards.md"
     ]
   },
   "optional_specialists": {
     "enabled_by_default": false,
     "trigger_matrix_file": "specialists/TRIGGERS.md",
-    "report_schema": "schemas/specialist-report.v2.schema.json",
-    "knowledge_files": ["contract.md", "schemas/specialist-report.v2.schema.json"],
+    "report_schema": "schemas/specialist-report.v3.schema.json",
+    "knowledge_files": ["contract.md", "schemas/specialist-report.v3.schema.json"],
     "default_max_per_revision": 2,
     "profiles": [
       { "id": "security", "name": "GPT Security Specialist", "instructions_file": "specialists/security-gpt.md", "capabilities": { "web_search": false, "code_interpreter": false, "actions": false } },
       { "id": "ux", "name": "GPT UX Specialist", "instructions_file": "specialists/ux-gpt.md", "capabilities": { "web_search": false, "code_interpreter": false, "actions": false } },
       { "id": "perf", "name": "GPT Perf/Reliability Specialist", "instructions_file": "specialists/perf-gpt.md", "capabilities": { "web_search": false, "code_interpreter": false, "actions": false } },
-      { "id": "data", "name": "GPT Data/Migration Specialist", "instructions_file": "specialists/data-gpt.md", "capabilities": { "web_search": false, "code_interpreter": false, "actions": false } },
-      { "id": "release", "name": "GPT Release/DevOps Specialist", "instructions_file": "specialists/release-gpt.md", "capabilities": { "web_search": false, "code_interpreter": false, "actions": false } },
-      { "id": "researcher", "name": "GPT Research Specialist", "instructions_file": "specialists/researcher-gpt.md", "capabilities": { "web_search": false, "code_interpreter": false, "actions": false } }
+      { "id": "data", "name": "GPT Data/Knowledge Specialist", "instructions_file": "specialists/data-gpt.md", "capabilities": { "web_search": false, "code_interpreter": false, "actions": false } },
+      { "id": "release", "name": "GPT Release Specialist", "instructions_file": "specialists/release-gpt.md", "capabilities": { "web_search": false, "code_interpreter": false, "actions": false } },
+      { "id": "researcher", "name": "GPT Research Specialist", "instructions_file": "specialists/researcher-gpt.md", "capabilities": { "web_search": "optional", "code_interpreter": false, "actions": false }, "note": "Enable Web Search only when current external facts are required; without it, facts are reported as unverified." }
     ]
   }
 }

@@ -1,0 +1,168 @@
+{
+  "description": "Cases run by `python tools/validate_examples.py` with no arguments. Paths are relative to the package root.",
+  "positive": [
+    {
+      "file": "examples/fixtures/requirements-brief-gpt/good/builder-response.md"
+    },
+    {
+      "file": "examples/fixtures/requirements-brief-gpt/expected/good.audit.json",
+      "handoff": "examples/fixtures/requirements-brief-gpt/good/builder-response.md"
+    },
+    {
+      "file": "examples/audit-notes.v3.json",
+      "handoff": "examples/fixtures/requirements-brief-gpt/good/builder-response.md"
+    },
+    {
+      "file": "examples/fixtures/requirements-brief-gpt/seeded/seeded-question-limit.md"
+    },
+    {
+      "file": "examples/fixtures/requirements-brief-gpt/seeded/seeded-action-no-auth.md"
+    },
+    {
+      "file": "examples/fixtures/requirements-brief-gpt/seeded/seeded-knowledge-obey.md"
+    },
+    {
+      "file": "examples/fixtures/requirements-brief-gpt/seeded/seeded-capability-overclaim.md"
+    },
+    {
+      "file": "examples/fixtures/requirements-brief-gpt/seeded/seeded-format-collision.md"
+    },
+    {
+      "file": "examples/fixtures/requirements-brief-gpt/expected/seeded-question-limit.audit.json",
+      "handoff": "examples/fixtures/requirements-brief-gpt/seeded/seeded-question-limit.md"
+    },
+    {
+      "file": "examples/fixtures/requirements-brief-gpt/expected/seeded-action-no-auth.audit.json",
+      "handoff": "examples/fixtures/requirements-brief-gpt/seeded/seeded-action-no-auth.md"
+    },
+    {
+      "file": "examples/fixtures/requirements-brief-gpt/expected/seeded-knowledge-obey.audit.json",
+      "handoff": "examples/fixtures/requirements-brief-gpt/seeded/seeded-knowledge-obey.md"
+    },
+    {
+      "file": "examples/fixtures/requirements-brief-gpt/expected/seeded-capability-overclaim.audit.json",
+      "handoff": "examples/fixtures/requirements-brief-gpt/seeded/seeded-capability-overclaim.md"
+    },
+    {
+      "file": "examples/fixtures/requirements-brief-gpt/expected/seeded-format-collision.audit.json",
+      "handoff": "examples/fixtures/requirements-brief-gpt/seeded/seeded-format-collision.md"
+    },
+    {
+      "file": "examples/chain/handoff-r1.v3.json",
+      "previous": "examples/fixtures/requirements-brief-gpt/expected/seeded-question-limit.audit.json"
+    },
+    {
+      "file": "examples/chain/audit-r2.v3.json",
+      "previous": "examples/fixtures/requirements-brief-gpt/expected/seeded-question-limit.audit.json",
+      "handoff": "examples/chain/handoff-r1.v3.json"
+    },
+    {
+      "file": "examples/chain/handoff-r2.v3.json",
+      "previous": "examples/chain/audit-r2.v3.json"
+    },
+    {
+      "file": "examples/chain/audit-r3-escalation.v3.json",
+      "previous": "examples/chain/audit-r2.v3.json",
+      "handoff": "examples/chain/handoff-r2.v3.json"
+    },
+    {
+      "file": "examples/specialist-security.v3.json",
+      "handoff": "examples/fixtures/requirements-brief-gpt/seeded/seeded-action-no-auth.md"
+    },
+    {
+      "file": "examples/specialist-ux.v3.json",
+      "handoff": "examples/fixtures/requirements-brief-gpt/seeded/seeded-question-limit.md"
+    },
+    {
+      "file": "examples/specialist-researcher.v3.json",
+      "handoff": "examples/fixtures/requirements-brief-gpt/good/builder-response.md"
+    },
+    {
+      "file": "examples/audit-with-specialist-promotion.v3.json",
+      "handoff": "examples/fixtures/requirements-brief-gpt/seeded/seeded-action-no-auth.md",
+      "specialists": [
+        "examples/specialist-security.v3.json"
+      ]
+    },
+    {
+      "file": "self-audit/build-handoff.v3.json"
+    },
+    {
+      "file": "self-audit/audit-report.v3.json",
+      "handoff": "self-audit/build-handoff.v3.json"
+    }
+  ],
+  "negative": [
+    {
+      "file": "examples/invalid/audit-round1-regression.v3.json",
+      "expect": "audit 1 must have an empty regression_check"
+    },
+    {
+      "file": "examples/invalid/audit-closed-id-reuse.v3.json",
+      "previous": "examples/chain/audit-r2.v3.json",
+      "expect": "reuses previously closed finding ID(s)"
+    },
+    {
+      "file": "examples/invalid/audit-not-verifiable-omitted.v3.json",
+      "previous": "examples/chain/audit-r2.v3.json",
+      "expect": "prior not_verifiable finding F2 must remain in current findings"
+    },
+    {
+      "file": "examples/invalid/audit-nonmonotonic-id.v3.json",
+      "previous": "examples/invalid/audit-id-gap-prior.v3.json",
+      "expect": "new finding ID(s) must be greater than prior ID F3"
+    },
+    {
+      "file": "examples/invalid/specialist-researcher-missing-brief.v3.json",
+      "expect": "research_brief"
+    },
+    {
+      "file": "examples/invalid/specialist-orphan-recommendation.v3.json",
+      "expect": "recommended_to_auditor references missing finding ID(s)"
+    },
+    {
+      "file": "examples/invalid/audit-pass-with-not-met.v3.json",
+      "expect": "require at least one BLOCKER/MAJOR finding"
+    },
+    {
+      "file": "examples/invalid/audit-behavioral-met-static.v3.json",
+      "expect": "is not one of ['transcript', 'executed']"
+    },
+    {
+      "file": "examples/invalid/audit-evidence-required-pass.v3.json",
+      "handoff": "examples/invalid/handoff-evidence-required.v3.json",
+      "expect": "evidence_required criterion AC2 is not_verifiable"
+    },
+    {
+      "file": "examples/invalid/audit-acceptance-mismatch.v3.json",
+      "handoff": "examples/fixtures/requirements-brief-gpt/good/builder-response.md",
+      "expect": "acceptance_check must have one row per handoff criterion"
+    },
+    {
+      "file": "examples/invalid/audit-static-prefix-missing.v3.json",
+      "expect": "summary must begin 'Static-only:"
+    },
+    {
+      "file": "examples/invalid/handoff-addresses-mismatch.v3.json",
+      "previous": "examples/fixtures/requirements-brief-gpt/expected/seeded-question-limit.audit.json",
+      "expect": "must equal the previous must_fix"
+    },
+    {
+      "file": "examples/invalid/handoff-rev0-addresses.v3.json",
+      "expect": "at addresses"
+    },
+    {
+      "file": "examples/invalid/audit-specialist-mismatch.v3.json",
+      "handoff": "examples/fixtures/requirements-brief-gpt/seeded/seeded-action-no-auth.md",
+      "specialists": [
+        "examples/invalid/specialist-security-wrong-revision.v3.json"
+      ],
+      "expect": "accepted specialist report"
+    },
+    {
+      "file": "examples/invalid/specialist-wrong-handoff.v3.json",
+      "handoff": "examples/chain/handoff-r1.v3.json",
+      "expect": "do not match the Builder handoff"
+    }
+  ]
+}

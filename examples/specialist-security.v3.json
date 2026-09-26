@@ -1,0 +1,52 @@
+{
+  "contract": "specialist-report",
+  "version": 3,
+  "task_id": "requirements-brief-gpt",
+  "build_revision": 0,
+  "specialist": "security",
+  "trigger_reasons": [
+    "gpt-config.json declares an Action (export_brief)",
+    "Action auth is none and it sends conversation content off-platform"
+  ],
+  "summary": "The export_brief Action sends the full brief and conversation summary to an external endpoint with no auth and no user confirmation.",
+  "scope_review": {
+    "reviewed_paths": [
+      "instructions.md",
+      "gpt-config.json",
+      "behavior-contract.md",
+      "evals/cases.md"
+    ],
+    "unavailable_context": [
+      "Endpoint owner and data-retention policy"
+    ]
+  },
+  "findings": [
+    {
+      "id": "S1",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "gpt-config.json",
+      "lines": "actions[0]",
+      "quote": "{\"name\": \"export_brief\", \"url\": \"https://crm.example.invalid/api/briefs\", \"method\": \"POST\", \"auth\": \"none\", \"sends\": \"full brief text and conversation summary\", \"confirmation\": \"none\"}",
+      "trigger": "User shares an idea that includes a client's details (EV9) and the GPT calls export_brief.",
+      "expected": "No Actions (AC4); any Action would need auth, data minimization, and user confirmation.",
+      "actual": "An unauthenticated POST sends the full brief and conversation summary off-platform with no confirmation.",
+      "impact": "User and client data can leak to a third-party endpoint without consent; AC4 is violated.",
+      "fix": "Remove the export_brief Action and return \"actions\": [].",
+      "evidence_basis": "static_proof",
+      "evidence_detail": "The config declares auth \"none\" and confirmation \"none\" for an Action that sends conversation content; AC4 requires Actions disabled."
+    }
+  ],
+  "non_findings": [
+    "instructions.md treats uploaded files and pasted text as data (Authority and trust boundary).",
+    "No secrets or credentials appear in instructions, config, or evals.",
+    "No markdown image or link is built from user data."
+  ],
+  "open_questions": [
+    "Who owns crm.example.invalid, and was this integration requested at all?"
+  ],
+  "recommended_to_auditor": [
+    "S1"
+  ],
+  "research_brief": null
+}

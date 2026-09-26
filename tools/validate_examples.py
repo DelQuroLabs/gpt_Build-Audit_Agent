@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
-"""Validate bundled examples or a real Build ↔ Audit v2 packet/report.
+"""Validate Build <-> Audit v3 objects: bundled fixtures or a real packet.
 
-Requires the optional `jsonschema` package. With no arguments, validates the
-Builder, Auditor, and specialist examples. To validate a generated object, pass its JSON file. For an
-audit round after the first, also pass the immediately previous audit report:
+Requires `jsonschema` (see tools/requirements.txt).
 
-    python tools/validate_examples.py handoff.json
-    python tools/validate_examples.py current-audit.json --previous-report prior-audit.json
+With no arguments, runs every positive and negative case in examples/manifest.json.
+To validate a generated object, pass a .json file or a complete .md response; for
+.md input the last fenced ```json block is used:
+
+    python tools/validate_examples.py builder-response.md
+    python tools/validate_examples.py builder-response.md --previous-report prior-audit.json
+    python tools/validate_examples.py audit.json --handoff builder-response.md
+    python tools/validate_examples.py audit.json --handoff h.json --previous-report prior.json
+    python tools/validate_examples.py audit.json --handoff h.json --specialist security.json
+    python tools/validate_examples.py specialist.json --handoff builder-response.md
+
+Exit codes: 0 valid, 1 invalid, 2 unreadable input.
 """
 from __future__ import annotations
 
@@ -21,382 +29,341 @@ from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS = {
-    "build-audit-handoff": ROOT / "schemas/build-audit-handoff.v2.schema.json",
-    "audit-report": ROOT / "schemas/audit-report.v2.schema.json",
-    "specialist-report": ROOT / "schemas/specialist-report.v2.schema.json",
+    "build-audit-handoff": ROOT / "schemas/build-audit-handoff.v3.schema.json",
+    "audit-report": ROOT / "schemas/audit-report.v3.schema.json",
+    "specialist-report": ROOT / "schemas/specialist-report.v3.schema.json",
 }
-EXAMPLES = [
-    (ROOT / "examples/build-handoff.v2.json", None),
-    (ROOT / "examples/audit-pass.v2.json", None),
-    (ROOT / "examples/audit-notes.v2.json", None),
-    (ROOT / "examples/audit-fail.v2.json", None),
-    (ROOT / "examples/audit-rework.v2.json", ROOT / "examples/audit-fail.v2.json"),
-    (ROOT / "examples/audit-escalation.v2.json", ROOT / "examples/audit-rework.v2.json"),
-    (ROOT / "examples/specialist-security.v2.json", None),
-    (ROOT / "examples/specialist-ux.v2.json", None),
-    (ROOT / "examples/specialist-researcher.v2.json", None),
-    (ROOT / "examples/audit-with-specialist-promotion.v2.json", None),
-]
-NEGATIVE_EXAMPLES = [
-    (ROOT / "examples/invalid/audit-round1-regression.v2.json", None,
-     "audit 1 must have an empty regression_check"),
-    (ROOT / "examples/invalid/audit-closed-id-reuse.v2.json",
-     ROOT / "examples/audit-rework.v2.json", "reuses previously closed finding ID(s)"),
-    (ROOT / "examples/invalid/audit-not-verifiable-omitted.v2.json",
-     ROOT / "examples/audit-rework.v2.json", "prior not_verifiable finding F2 must remain in current findings"),
-    (ROOT / "examples/invalid/audit-nonmonotonic-id.v2.json",
-     ROOT / "examples/invalid/audit-id-gap-reuse-prior.v2.json",
-     "new finding ID(s) must be greater than prior ID F3"),
-    (ROOT / "examples/invalid/specialist-researcher-missing-brief.v2.json", None,
-     "research_brief"),
-    (ROOT / "examples/invalid/specialist-orphan-recommendation.v2.json", None,
-     "recommended_to_auditor references missing finding ID(s)"),
-]
+MANIFEST = ROOT / "examples/manifest.json"
 STOP_CONDITION = re.compile(r"^(F[1-9][0-9]*): .+$")
+STATIC_PREFIX = re.compile(r"^Static-only: (\d+) of (\d+) criteria not verifiable\.")
+FENCED_JSON = re.compile(r"```json\s*\n(.*?)\n```", re.S)
 
 
-def load_json(path: Path) -> Any:
-    with path.open(encoding="utf-8") as handle:
-        return json.load(handle)
+class InputError(Exception):
+    """Raised when an input file cannot be read or parsed."""
 
 
-def get_schema(instance: Any) -> tuple[str, Path] | None:
-    if not isinstance(instance, dict):
-        return None
-    contract = instance.get("contract")
-    if not isinstance(contract, str):
-        return None
-    schema_path = SCHEMAS.get(contract)
-    if schema_path is None:
-        return None
-    return contract, schema_path
+def load_document(path: Path) -> Any:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise InputError(f"{path}: {exc}") from exc
+    if path.suffix.lower() == ".md":
+        blocks = FENCED_JSON.findall(text)
+        if not blocks:
+            raise InputError(f"{path}: no fenced ```json block found")
+        text = blocks[-1]
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise InputError(f"{path}: invalid JSON: {exc}") from exc
 
 
-def schema_errors(label: str, instance: Any, schema_path: Path) -> list[str]:
-    schema = load_json(schema_path)
+def contract_of(instance: Any) -> str | None:
+    if isinstance(instance, dict) and instance.get("contract") in SCHEMAS:
+        return instance["contract"]
+    return None
+
+
+def schema_errors(label: str, instance: Any) -> list[str]:
+    contract = contract_of(instance)
+    if contract is None:
+        return [f"{label}: unknown contract; expected one of {sorted(SCHEMAS)}"]
+    schema = json.loads(SCHEMAS[contract].read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
-    validator = Draft202012Validator(schema)
     errors = []
-    for error in validator.iter_errors(instance):
+    for error in Draft202012Validator(schema).iter_errors(instance):
         location = "/".join(str(part) for part in error.absolute_path) or "<root>"
         errors.append(f"{label} at {location}: {error.message}")
     return errors
 
 
-def protocol_errors(
+def _ids(rows: Any, key: str) -> list[str]:
+    if not isinstance(rows, list):
+        return []
+    return [row[key] for row in rows if isinstance(row, dict) and isinstance(row.get(key), str)]
+
+
+def _num(finding_id: str) -> int | None:
+    match = re.fullmatch(r"[FS]([1-9][0-9]*)", finding_id)
+    return int(match.group(1)) if match else None
+
+
+# --------------------------------------------------------------------------- handoff
+def handoff_errors(label: str, h: dict, previous: Any = None) -> list[str]:
+    errors: list[str] = []
+    criteria = _ids(h.get("acceptance_criteria"), "id")
+    if len(criteria) != len(set(criteria)):
+        errors.append(f"{label}: acceptance criterion IDs must be unique")
+    paths = _ids(h.get("artifacts"), "path")
+    if len(paths) != len(set(paths)):
+        errors.append(f"{label}: artifact paths must be unique")
+    if previous is not None:
+        if contract_of(previous) != "audit-report":
+            return errors + [f"{label}: --previous-report must be an audit-report object"]
+        if h.get("task_id") != previous.get("task_id"):
+            errors.append(f"{label}: task_id does not match the previous report")
+        prev_rev = previous.get("build_revision")
+        if not isinstance(prev_rev, int) or h.get("build_revision") != prev_rev + 1:
+            errors.append(f"{label}: build_revision must be the previous report's build_revision + 1")
+        if previous.get("verdict") != "FAIL" or previous.get("audit_round") not in (1, 2):
+            errors.append(f"{label}: rework requires a previous FAIL on audit 1 or 2")
+        brief = previous.get("rework_brief")
+        must_fix = set(brief.get("must_fix", [])) if isinstance(brief, dict) else set()
+        addresses = set(h.get("addresses", []) or [])
+        if addresses != must_fix:
+            errors.append(
+                f"{label}: addresses {sorted(addresses)} must equal the previous must_fix {sorted(must_fix)}"
+            )
+    return errors
+
+
+# --------------------------------------------------------------------------- specialist
+def specialist_errors(label: str, s: dict, handoff: Any = None) -> list[str]:
+    errors: list[str] = []
+    findings = s.get("findings", [])
+    ids = _ids(findings, "id")
+    if isinstance(findings, list) and len(ids) == len(findings) and len(ids) != len(set(ids)):
+        errors.append(f"{label}: specialist finding IDs must be unique within the report")
+    recommended = s.get("recommended_to_auditor", [])
+    if isinstance(recommended, list):
+        missing = sorted(set(x for x in recommended if isinstance(x, str)) - set(ids))
+        if missing:
+            errors.append(f"{label}: recommended_to_auditor references missing finding ID(s): {missing}")
+    if handoff is not None:
+        if (s.get("task_id"), s.get("build_revision")) != (handoff.get("task_id"), handoff.get("build_revision")):
+            errors.append(f"{label}: specialist task_id/build_revision do not match the Builder handoff")
+    return errors
+
+
+# --------------------------------------------------------------------------- audit
+def audit_errors(
     label: str,
-    instance: Any,
-    previous_report: Any = None,
-    *,
+    a: dict,
+    previous: Any = None,
+    handoff: Any = None,
+    specialists: list[tuple[str, Any]] | None = None,
     require_previous: bool = False,
 ) -> list[str]:
-    """Check cross-field rules that are awkward to express in JSON Schema."""
-    if not isinstance(instance, dict):
-        return []
-    if instance.get("contract") == "specialist-report":
-        return specialist_protocol_errors(label, instance)
-    if instance.get("contract") != "audit-report":
-        return []
-
     errors: list[str] = []
-    findings = instance.get("findings", [])
-    if not isinstance(findings, list) or any(not isinstance(item, dict) for item in findings):
-        return errors  # The JSON Schema reports malformed findings safely.
-
-    finding_ids = [item.get("id") for item in findings]
-    by_id = {finding_id: finding for finding_id, finding in zip(finding_ids, findings)
-             if isinstance(finding_id, str)}
+    findings = a.get("findings", [])
+    if not isinstance(findings, list) or any(not isinstance(f, dict) for f in findings):
+        return errors
+    by_id = {f["id"]: f for f in findings if isinstance(f.get("id"), str)}
     if len(by_id) != len(findings):
         errors.append(f"{label}: finding IDs must be present and unique")
+    severe = {fid for fid, f in by_id.items() if f.get("severity") in {"BLOCKER", "MAJOR"}}
 
-    audit_round = instance.get("audit_round")
-    expected_revision = {1: 0, 2: 1, 3: 2}.get(audit_round) if isinstance(audit_round, int) else None
-    if instance.get("build_revision") != expected_revision:
+    round_ = a.get("audit_round")
+    if isinstance(round_, int) and a.get("build_revision") != round_ - 1:
         errors.append(f"{label}: build_revision must equal audit_round - 1")
-    if audit_round == 1 and instance.get("regression_check"):
+    if round_ == 1 and a.get("regression_check"):
         errors.append(f"{label}: audit 1 must have an empty regression_check")
 
-    brief = instance.get("rework_brief")
-    if isinstance(brief, dict):
-        must_fix = brief.get("must_fix", [])
-        deferred = brief.get("deferred", [])
-        if not isinstance(must_fix, list) or not all(isinstance(x, str) for x in must_fix):
-            must_fix = []  # Schema reports the type error.
-        if not isinstance(deferred, list) or not all(isinstance(x, str) for x in deferred):
-            deferred = []  # Schema reports the type error.
+    # Acceptance check.
+    rows = [r for r in a.get("acceptance_check", []) if isinstance(r, dict)]
+    row_ids = [r.get("criterion_id") for r in rows]
+    if len(row_ids) != len(set(row_ids)):
+        errors.append(f"{label}: acceptance_check criterion IDs must be unique")
+    not_met = [r.get("criterion_id") for r in rows if r.get("result") == "not_met"]
+    if not_met and not severe:
+        errors.append(f"{label}: not_met criteria {not_met} require at least one BLOCKER/MAJOR finding")
+    unverifiable = [r for r in rows if r.get("result") == "not_verifiable"]
+    if a.get("verdict") in {"PASS", "PASS_WITH_NOTES"} and unverifiable:
+        match = STATIC_PREFIX.match(a.get("summary", ""))
+        if not match or (int(match.group(1)), int(match.group(2))) != (len(unverifiable), len(rows)):
+            errors.append(
+                f"{label}: summary must begin 'Static-only: {len(unverifiable)} of {len(rows)} criteria not verifiable.'"
+            )
 
-        if instance.get("verdict") == "FAIL" and audit_round in (1, 2) and not must_fix:
-            errors.append(f"{label}: FAIL on audit 1 or 2 must assign at least one ID to must_fix")
-
-        for finding_id in must_fix + deferred:
-            finding = by_id.get(finding_id)
-            if finding is None:
-                errors.append(f"{label}: rework ID {finding_id} is absent from findings")
-            elif not isinstance(finding.get("severity"), str) or finding.get("severity") not in {"BLOCKER", "MAJOR"}:
-                errors.append(f"{label}: rework ID {finding_id} is not BLOCKER/MAJOR")
-
-        overlap = set(must_fix) & set(deferred)
-        if overlap:
-            errors.append(f"{label}: IDs cannot be both must_fix and deferred: {sorted(overlap)}")
-
-        unresolved = {
-            finding.get("id")
-            for finding in findings
-            if isinstance(finding.get("id"), str)
-            and isinstance(finding.get("severity"), str)
-            and finding.get("severity") in {"BLOCKER", "MAJOR"}
-        }
-        untracked = unresolved - set(must_fix) - set(deferred)
-        if untracked:
-            errors.append(f"{label}: unresolved BLOCKER/MAJOR IDs omitted from rework tracking: {sorted(untracked)}")
-
-        conditions = brief.get("stop_conditions", [])
-        if isinstance(conditions, list) and all(isinstance(item, str) for item in conditions):
-            condition_ids = [match.group(1) for item in conditions
-                             if (match := STOP_CONDITION.fullmatch(item))]
-            malformed = len(condition_ids) != len(conditions)
-            duplicates = len(condition_ids) != len(set(condition_ids))
-            if malformed:
-                errors.append(f"{label}: each stop condition must use `F<n>: <observable check>` format")
-            if duplicates or set(condition_ids) != set(must_fix) or len(condition_ids) != len(must_fix):
-                errors.append(f"{label}: provide exactly one stop condition for each must_fix ID")
-
-    regression = instance.get("regression_check", [])
-    if not isinstance(regression, list) or any(not isinstance(item, dict) for item in regression):
-        regression = []  # Schema reports malformed regression rows.
-    regression_ids = [item.get("finding_id") for item in regression]
-    valid_regression_ids = [finding_id for finding_id in regression_ids if isinstance(finding_id, str)]
-    if len(valid_regression_ids) != len(set(valid_regression_ids)):
-        errors.append(f"{label}: regression_check finding IDs must be unique")
-
-    if require_previous and audit_round in (2, 3) and previous_report is None:
-        errors.append(f"{label}: provide the immediately previous audit report with --previous-report")
-
-    if previous_report is not None:
-        if not isinstance(previous_report, dict) or previous_report.get("contract") != "audit-report":
-            errors.append(f"{label}: --previous-report must be an audit-report object")
-            return errors
-
-        previous_round = previous_report.get("audit_round")
-        if instance.get("task_id") != previous_report.get("task_id"):
-            errors.append(f"{label}: task_id does not match the previous report")
-        if previous_round not in (1, 2) or audit_round != previous_round + 1:
-            errors.append(f"{label}: audit_round must immediately follow a previous FAIL on round 1 or 2")
-        previous_revision = previous_report.get("build_revision")
-        if (not isinstance(previous_revision, int)
-                or instance.get("build_revision") != previous_revision + 1):
-            errors.append(f"{label}: build_revision must increase by exactly one from the previous report")
-        if previous_report.get("verdict") != "FAIL":
-            errors.append(f"{label}: the previous report must have verdict FAIL to continue rework")
-
-        previous_brief = previous_report.get("rework_brief")
-        if not isinstance(previous_brief, dict):
-            errors.append(f"{label}: the previous FAIL report must contain a rework_brief")
+    if handoff is not None:
+        if contract_of(handoff) != "build-audit-handoff":
+            errors.append(f"{label}: --handoff must be a build-audit-handoff object")
         else:
-            prior_must_fix = previous_brief.get("must_fix", [])
-            prior_deferred = previous_brief.get("deferred", [])
-            if (not isinstance(prior_must_fix, list)
-                    or not isinstance(prior_deferred, list)
-                    or not all(isinstance(x, str) for x in prior_must_fix + prior_deferred)):
-                prior_ids = []
-            else:
-                prior_ids = prior_must_fix + prior_deferred
-            expected_ids = set(prior_ids)
-            if len(prior_ids) != len(expected_ids):
-                errors.append(f"{label}: previous must_fix and deferred IDs must be unique across both lists")
-            actual_ids = set(valid_regression_ids)
-            if expected_ids != actual_ids or len(valid_regression_ids) != len(prior_ids):
-                errors.append(f"{label}: regression_check must contain exactly one status for every prior must_fix/deferred ID")
-
-            regression_by_id = {
-                item.get("finding_id"): item for item in regression
-                if isinstance(item.get("finding_id"), str)
-            }
-            for finding_id in expected_ids:
-                status = regression_by_id.get(finding_id, {}).get("status")
-                if isinstance(status, str) and status in {"open", "reopened", "not_verifiable"} and finding_id not in by_id:
-                    errors.append(f"{label}: prior {status} finding {finding_id} must remain in current findings")
-
-            # A closed ID cannot be reassigned to a later defect. New IDs must
-            # also sort above every ID already present in the supplied history.
-            prior_history_ids: set[str] = set()
-            previous_findings = previous_report.get("findings", [])
-            if not isinstance(previous_findings, list):
-                previous_findings = []
-            for row in previous_findings:
-                if isinstance(row, dict) and isinstance(row.get("id"), str):
-                    prior_history_ids.add(row["id"])
-            previous_regression = previous_report.get("regression_check", [])
-            if not isinstance(previous_regression, list):
-                previous_regression = []
-            for row in previous_regression:
-                if isinstance(row, dict) and isinstance(row.get("finding_id"), str):
-                    prior_history_ids.add(row["finding_id"])
-            prior_closed_ids = {
-                row.get("finding_id")
-                for row in previous_regression
-                if isinstance(row, dict) and row.get("status") == "fixed"
-                and isinstance(row.get("finding_id"), str)
-            }
-            frozen = previous_brief.get("frozen", [])
-            if not isinstance(frozen, list):
-                frozen = []
-            for row in frozen:
-                if isinstance(row, dict) and isinstance(row.get("id"), str):
-                    prior_history_ids.add(row["id"])
-                    prior_closed_ids.add(row["id"])
-            prior_history_ids.update(expected_ids)
-
-            current_ids = set(by_id)
-            reused_closed = current_ids & prior_closed_ids
-            if reused_closed:
+            if (a.get("task_id"), a.get("build_revision")) != (handoff.get("task_id"), handoff.get("build_revision")):
+                errors.append(f"{label}: task_id/build_revision do not match the Builder handoff")
+            criteria = [c for c in handoff.get("acceptance_criteria", []) if isinstance(c, dict)]
+            expected = [(c.get("id"), c.get("kind")) for c in criteria]
+            actual = [(r.get("criterion_id"), r.get("kind")) for r in rows]
+            if expected != actual:
                 errors.append(
-                    f"{label}: reuses previously closed finding ID(s): {sorted(reused_closed)}"
+                    f"{label}: acceptance_check must have one row per handoff criterion, in order, with matching kind; "
+                    f"expected {expected}, got {actual}"
                 )
-
-            def finding_number(finding_id: str) -> int | None:
-                match = re.fullmatch(r"F([1-9][0-9]*)", finding_id)
-                return int(match.group(1)) if match else None
-
-            prior_numbers = [number for item in prior_history_ids
-                             if (number := finding_number(item)) is not None]
-            new_ids = current_ids - prior_history_ids
-            if prior_numbers:
-                highest_prior = max(prior_numbers)
-                nonmonotonic = sorted(
-                    finding_id for finding_id in new_ids
-                    if (number := finding_number(finding_id)) is not None
-                    and number <= highest_prior
-                )
-                if nonmonotonic:
+            gap_findings = [f for f in findings if f.get("category") == "verification_gap"
+                            and f.get("severity") in {"BLOCKER", "MAJOR"}]
+            required = {c.get("id") for c in criteria if c.get("evidence_required") is True}
+            for r in unverifiable:
+                if r.get("criterion_id") in required and (a.get("verdict") != "FAIL" or not gap_findings):
                     errors.append(
-                        f"{label}: new finding ID(s) must be greater than prior ID F{highest_prior}: {nonmonotonic}"
+                        f"{label}: evidence_required criterion {r.get('criterion_id')} is not_verifiable; "
+                        "verdict must be FAIL with a BLOCKER/MAJOR verification_gap finding"
                     )
 
+    for spec_label, report in specialists or []:
+        if contract_of(report) != "specialist-report":
+            errors.append(f"{label}: {spec_label} is not a specialist-report object")
+            continue
+        listed = f"specialist-report:{report.get('specialist')}" in " ".join(
+            a.get("scope_review", {}).get("reviewed_paths", []))
+        matches = (report.get("task_id"), report.get("build_revision")) == (a.get("task_id"), a.get("build_revision"))
+        if listed and not matches:
+            errors.append(f"{label}: accepted specialist report {spec_label} has a different task_id/build_revision")
+
+    brief = a.get("rework_brief")
+    if isinstance(brief, dict):
+        must_fix = [x for x in brief.get("must_fix", []) if isinstance(x, str)]
+        deferred = [x for x in brief.get("deferred", []) if isinstance(x, str)]
+        for fid in must_fix + deferred:
+            if fid not in by_id:
+                errors.append(f"{label}: rework ID {fid} is absent from findings")
+            elif fid not in severe:
+                errors.append(f"{label}: rework ID {fid} is not BLOCKER/MAJOR")
+        if set(must_fix) & set(deferred):
+            errors.append(f"{label}: IDs cannot be both must_fix and deferred: {sorted(set(must_fix) & set(deferred))}")
+        untracked = severe - set(must_fix) - set(deferred)
+        if untracked:
+            errors.append(f"{label}: unresolved BLOCKER/MAJOR IDs omitted from rework tracking: {sorted(untracked)}")
+        conditions = [c for c in brief.get("stop_conditions", []) if isinstance(c, str)]
+        cond_ids = [m.group(1) for c in conditions if (m := STOP_CONDITION.fullmatch(c))]
+        if len(cond_ids) != len(conditions):
+            errors.append(f"{label}: each stop condition must use `F<n>: <observable check>` format")
+        if len(cond_ids) != len(set(cond_ids)) or sorted(cond_ids) != sorted(must_fix):
+            errors.append(f"{label}: provide exactly one stop condition for each must_fix ID")
+
+    regression = [r for r in a.get("regression_check", []) if isinstance(r, dict)]
+    reg_ids = [r.get("finding_id") for r in regression if isinstance(r.get("finding_id"), str)]
+    if len(reg_ids) != len(set(reg_ids)):
+        errors.append(f"{label}: regression_check finding IDs must be unique")
+
+    if require_previous and round_ in (2, 3) and previous is None:
+        errors.append(f"{label}: provide the immediately previous audit report with --previous-report")
+
+    if previous is not None:
+        if contract_of(previous) != "audit-report":
+            return errors + [f"{label}: --previous-report must be an audit-report object"]
+        prev_round = previous.get("audit_round")
+        if a.get("task_id") != previous.get("task_id"):
+            errors.append(f"{label}: task_id does not match the previous report")
+        if prev_round not in (1, 2) or round_ != prev_round + 1:
+            errors.append(f"{label}: audit_round must immediately follow a previous FAIL on round 1 or 2")
+        if previous.get("verdict") != "FAIL":
+            errors.append(f"{label}: the previous report must have verdict FAIL to continue rework")
+        prev_brief = previous.get("rework_brief")
+        if not isinstance(prev_brief, dict):
+            return errors + [f"{label}: the previous FAIL report must contain a rework_brief"]
+        prior_ids = [x for x in prev_brief.get("must_fix", []) + prev_brief.get("deferred", []) if isinstance(x, str)]
+        if set(reg_ids) != set(prior_ids) or len(reg_ids) != len(prior_ids):
+            errors.append(f"{label}: regression_check must contain exactly one status for every prior must_fix/deferred ID")
+        status = {r.get("finding_id"): r.get("status") for r in regression}
+        for fid in prior_ids:
+            if status.get(fid) in {"open", "reopened", "not_verifiable"} and fid not in by_id:
+                errors.append(f"{label}: prior {status.get(fid)} finding {fid} must remain in current findings")
+        history = set(_ids(previous.get("findings"), "id")) | set(_ids(previous.get("regression_check"), "finding_id"))
+        closed = {r.get("finding_id") for r in previous.get("regression_check", [])
+                  if isinstance(r, dict) and r.get("status") == "fixed"}
+        for row in prev_brief.get("frozen", []):
+            if isinstance(row, dict) and isinstance(row.get("id"), str):
+                history.add(row["id"])
+                closed.add(row["id"])
+        history.update(prior_ids)
+        reused = set(by_id) & closed
+        if reused:
+            errors.append(f"{label}: reuses previously closed finding ID(s): {sorted(reused)}")
+        numbers = [n for i in history if (n := _num(i)) is not None]
+        if numbers:
+            top = max(numbers)
+            low = sorted(i for i in set(by_id) - history if (n := _num(i)) is not None and n <= top)
+            if low:
+                errors.append(f"{label}: new finding ID(s) must be greater than prior ID F{top}: {low}")
     return errors
 
 
-def specialist_protocol_errors(label: str, instance: Any) -> list[str]:
-    """Check specialist finding identity and recommendation references."""
-    if not isinstance(instance, dict) or instance.get("contract") != "specialist-report":
-        return []
+# --------------------------------------------------------------------------- driver
+def validate(
+    label: str,
+    instance: Any,
+    previous: Any = None,
+    handoff: Any = None,
+    specialists: list[tuple[str, Any]] | None = None,
+    require_previous: bool = False,
+) -> list[str]:
+    errors = schema_errors(label, instance)
+    contract = contract_of(instance)
+    if contract == "build-audit-handoff":
+        errors += handoff_errors(label, instance, previous)
+    elif contract == "audit-report":
+        errors += audit_errors(label, instance, previous, handoff, specialists, require_previous)
+    elif contract == "specialist-report":
+        errors += specialist_errors(label, instance, handoff)
+        if previous is not None:
+            errors.append(f"{label}: --previous-report cannot be used with a specialist report")
+    return errors
 
+
+def _load_optional(value: str | None) -> Any:
+    return load_document(ROOT / value) if value else None
+
+
+def run_manifest() -> int:
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     errors: list[str] = []
-    findings = instance.get("findings", [])
-    if not isinstance(findings, list) or any(not isinstance(item, dict) for item in findings):
-        return errors  # The JSON Schema reports malformed findings safely.
-
-    finding_ids = [item.get("id") for item in findings if isinstance(item.get("id"), str)]
-    if len(finding_ids) != len(findings):
-        return errors  # The JSON Schema reports missing or malformed IDs.
-    if len(finding_ids) != len(set(finding_ids)):
-        errors.append(f"{label}: specialist finding IDs must be unique within the report")
-
-    recommended = instance.get("recommended_to_auditor", [])
-    if not isinstance(recommended, list) or any(not isinstance(item, str) for item in recommended):
-        return errors  # The JSON Schema reports malformed recommendations safely.
-    missing = sorted(set(recommended) - set(finding_ids))
-    if missing:
-        errors.append(f"{label}: recommended_to_auditor references missing finding ID(s): {missing}")
-    return errors
+    for case in manifest["positive"]:
+        label = case["file"]
+        specialists = [(s, load_document(ROOT / s)) for s in case.get("specialists", [])]
+        previous = _load_optional(case.get("previous"))
+        if previous is not None:
+            errors += validate(f"{case['previous']} (as previous)", previous)
+        errors += validate(label, load_document(ROOT / label), previous,
+                           _load_optional(case.get("handoff")), specialists)
+    for case in manifest["negative"]:
+        label = case["file"]
+        specialists = [(s, load_document(ROOT / s)) for s in case.get("specialists", [])]
+        observed = validate(label, load_document(ROOT / label), _load_optional(case.get("previous")),
+                            _load_optional(case.get("handoff")), specialists)
+        if not any(case["expect"] in e for e in observed):
+            errors.append(f"{label}: expected rejection containing {case['expect']!r}; observed {observed or 'no errors'}")
+    if errors:
+        print("Invalid document(s):")
+        for e in errors:
+            print(f" - {e}")
+        return 1
+    print(f"Validated {len(manifest['positive'])} positive cases and "
+          f"{len(manifest['negative'])} expected-rejection cases against the v3 schemas and protocol rules.")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("file", nargs="?", type=Path, help="A generated v2 handoff or audit report JSON file")
-    parser.add_argument("--previous-report", type=Path,
-                        help="The immediately previous audit report when validating audit round 2 or 3")
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("file", nargs="?", type=Path, help="Handoff, audit report, or specialist report (.json or .md)")
+    parser.add_argument("--previous-report", type=Path, help="Immediately previous audit report (rework rounds)")
+    parser.add_argument("--handoff", type=Path, help="Builder handoff the report refers to (.json or .md)")
+    parser.add_argument("--specialist", type=Path, action="append", default=[],
+                        help="Specialist report supplied to the Auditor (repeatable)")
     args = parser.parse_args(argv)
-
-    using_examples = args.file is None
-    if using_examples and args.previous_report is not None:
-        parser.error("--previous-report requires a generated audit report file")
-
-    errors: list[str] = []
-    documents: list[tuple[Path, Any, Any]] = []
-    negative_documents: list[tuple[Path, Any, Any, str]] = []
     try:
-        if using_examples:
-            documents = [
-                (path, load_json(path), load_json(previous_path) if previous_path else None)
-                for path, previous_path in EXAMPLES
-            ]
-            negative_documents = [
-                (path, load_json(path), load_json(previous_path) if previous_path else None, expected_error)
-                for path, previous_path, expected_error in NEGATIVE_EXAMPLES
-            ]
-        else:
-            documents = [(args.file, load_json(args.file), None)]
-    except (OSError, json.JSONDecodeError) as exc:
-        print(f"Could not read JSON input: {exc}", file=sys.stderr)
+        if args.file is None:
+            if args.previous_report or args.handoff or args.specialist:
+                parser.error("options require a file")
+            return run_manifest()
+        instance = load_document(args.file)
+        previous = load_document(args.previous_report) if args.previous_report else None
+        handoff = load_document(args.handoff) if args.handoff else None
+        specialists = [(str(p), load_document(p)) for p in args.specialist]
+    except InputError as exc:
+        print(f"Could not read input: {exc}", file=sys.stderr)
         return 2
-
-    previous: Any = None
-    if args.previous_report is not None:
-        try:
-            previous = load_json(args.previous_report)
-        except (OSError, json.JSONDecodeError) as exc:
-            print(f"Could not read previous report: {exc}", file=sys.stderr)
-            return 2
-        previous_schema = get_schema(previous)
-        if previous_schema is None or previous_schema[0] != "audit-report":
-            errors.append(f"{args.previous_report}: expected an audit-report JSON object")
-        else:
-            errors.extend(schema_errors(str(args.previous_report), previous, previous_schema[1]))
-            errors.extend(protocol_errors(str(args.previous_report), previous))
-
-    if not using_examples and documents and args.previous_report is not None:
-        path, instance, _ = documents[0]
-        documents[0] = (path, instance, previous)
-
-    for path, instance, example_previous in documents:
-        schema_info = get_schema(instance)
-        if schema_info is None:
-            errors.append(f"{path}: unknown contract; expected build-audit-handoff, audit-report, or specialist-report")
-            continue
-        contract, schema_path = schema_info
-        errors.extend(schema_errors(str(path), instance, schema_path))
-        if args.previous_report is not None and contract != "audit-report":
-            errors.append(f"{path}: --previous-report can only be used with an audit-report JSON file")
-        if contract == "audit-report":
-            errors.extend(protocol_errors(
-                str(path), instance, example_previous,
-                require_previous=not using_examples,
-            ))
-        elif contract == "specialist-report":
-            errors.extend(specialist_protocol_errors(str(path), instance))
-
-    for path, instance, example_previous, expected_error in negative_documents:
-        negative_errors: list[str] = []
-        schema_info = get_schema(instance)
-        if schema_info is None:
-            negative_errors.append("unknown contract")
-        else:
-            negative_errors.extend(schema_errors(str(path), instance, schema_info[1]))
-            if schema_info[0] == "audit-report":
-                negative_errors.extend(protocol_errors(str(path), instance, example_previous))
-            elif schema_info[0] == "specialist-report":
-                negative_errors.extend(specialist_protocol_errors(str(path), instance))
-        if not any(expected_error in error for error in negative_errors):
-            errors.append(
-                f"{path}: expected validator rejection containing {expected_error!r}; "
-                f"observed {negative_errors or 'no errors'}"
-            )
-
+    errors = []
+    if previous is not None:
+        errors += validate(f"{args.previous_report} (as previous)", previous)
+    errors += validate(str(args.file), instance, previous, handoff, specialists,
+                       require_previous=contract_of(instance) == "audit-report")
     if errors:
         print("Invalid document(s):")
-        for error in errors:
-            print(f" - {error}")
+        for e in errors:
+            print(f" - {e}")
         return 1
-
-    count = len(documents)
-    if using_examples:
-        print(
-            f"Validated {count} bundled examples and {len(negative_documents)} expected-rejection fixtures "
-            "against Draft 2020-12 schemas and protocol cross-field rules."
-        )
-    else:
-        print(f"Validated {args.file} against its Draft 2020-12 schema and protocol cross-field rules.")
+    print(f"Validated {args.file} against its v3 schema and protocol rules.")
     return 0
 
 
