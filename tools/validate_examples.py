@@ -14,7 +14,7 @@ import argparse
 import json
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from jsonschema import Draft202012Validator
@@ -36,10 +36,11 @@ EXAMPLES = [
     (ROOT / "examples/specialist-ux.v2.json", None),
     (ROOT / "examples/specialist-researcher.v2.json", None),
     (ROOT / "examples/audit-with-specialist-promotion.v2.json", None),
-    (ROOT / "self-audit/build-handoff.v2.json", None),
     (ROOT / "self-audit/audit-pass.v2.json", None),
 ]
 NEGATIVE_EXAMPLES = [
+    (ROOT / "self-audit/build-handoff.v2.json", None,
+     "artifact paths must be canonical repository-relative"),
     (ROOT / "examples/invalid/audit-round1-regression.v2.json", None,
      "audit 1 must have an empty regression_check"),
     (ROOT / "examples/invalid/audit-closed-id-reuse.v2.json",
@@ -111,9 +112,40 @@ def _ids(value: Any) -> list[str]:
     return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
 
 
-def _number(value: str) -> int:
+def _id_order(value: str) -> tuple[int, str]:
+    """Compare decimal IDs without Python's bounded string-to-int conversion."""
     match = re.fullmatch(r"F([1-9][0-9]*)", value)
-    return int(match.group(1)) if match else 0
+    digits = match.group(1) if match else ""
+    return len(digits), digits
+
+
+def _is_integer(value: Any) -> bool:
+    return Draft202012Validator.TYPE_CHECKER.is_type(value, "integer")
+
+
+def _is_overrule(value: Any) -> bool:
+    return (isinstance(value, str) and value.startswith("human-overruled:")
+            and bool(value.removeprefix("human-overruled:").strip()))
+
+
+def handoff_protocol_errors(label: str, instance: Any) -> list[str]:
+    """Check portable file identity without accessing or resolving submitted paths."""
+    if not isinstance(instance, dict) or instance.get("contract") != "build-audit-handoff":
+        return []
+    errors = []
+    paths = []
+    for row in _rows(instance.get("artifacts")):
+        path = row.get("path")
+        if not isinstance(path, str):
+            continue  # The schema handles missing and non-string paths.
+        paths.append(path)
+        if (not path or "\\" in path or PureWindowsPath(path).drive
+                or PurePosixPath(path).is_absolute()
+                or any(part in ("", ".", "..") for part in path.split("/"))):
+            errors.append(f"{label}: artifact paths must be canonical repository-relative paths using / separators")
+    if len(paths) != len(set(paths)):
+        errors.append(f"{label}: artifact paths must be unique; one operation per file")
+    return errors
 
 
 def protocol_errors(
@@ -128,6 +160,8 @@ def protocol_errors(
         return []
     if instance.get("contract") == "specialist-report":
         return specialist_protocol_errors(label, instance)
+    if instance.get("contract") == "build-audit-handoff":
+        return handoff_protocol_errors(label, instance)
     if instance.get("contract") != "audit-report":
         return []
 
@@ -143,7 +177,7 @@ def protocol_errors(
         reject("finding IDs must be present and unique")
     current_ids = set(finding_ids)
     audit_round = instance.get("audit_round")
-    if type(audit_round) is int and instance.get("build_revision") != audit_round - 1:
+    if _is_integer(audit_round) and instance.get("build_revision") != audit_round - 1:
         reject("build_revision must equal audit_round - 1")
 
     regression = _rows(instance.get("regression_check"))
@@ -191,6 +225,13 @@ def protocol_errors(
     for row in regression:
         if row.get("status") == "fixed" and row.get("finding_id") in current_ids:
             reject("a fixed finding cannot remain active")
+        finding_id = row.get("finding_id")
+        reason = frozen_by_id.get(finding_id, {}).get("reason") if isinstance(finding_id, str) else None
+        if _is_overrule(row.get("evidence")) or _is_overrule(reason):
+            if row.get("status") != "not_verifiable":
+                reject("human-overruled findings must use not_verifiable, not a technical-fix status")
+            if row.get("finding_id") in current_ids:
+                reject("human-overruled IDs cannot also be active findings")
 
     if previous_report is None:
         if require_previous and audit_round in (2, 3):
@@ -204,9 +245,9 @@ def protocol_errors(
     previous_revision = previous_report.get("build_revision")
     if instance.get("task_id") != previous_report.get("task_id"):
         reject("task_id does not match the previous report")
-    if type(previous_round) is not int or previous_round not in (1, 2) or audit_round != previous_round + 1:
+    if not _is_integer(previous_round) or previous_round not in (1, 2) or audit_round != previous_round + 1:
         reject("audit_round must immediately follow a previous FAIL on round 1 or 2")
-    if type(previous_revision) is not int or instance.get("build_revision") != previous_revision + 1:
+    if not _is_integer(previous_revision) or instance.get("build_revision") != previous_revision + 1:
         reject("build_revision must increase by exactly one from the previous report")
     if previous_report.get("verdict") != "FAIL":
         reject("the previous report must have verdict FAIL to continue rework")
@@ -220,9 +261,15 @@ def protocol_errors(
     prior_regression = _rows(previous_report.get("regression_check"))
     prior_frozen = {row["id"] for row in _rows(previous_brief.get("frozen"))
                     if isinstance(row.get("id"), str)}
+    prior_overruled = {
+        row["id"] for row in _rows(previous_brief.get("frozen"))
+        if isinstance(row.get("id"), str) and _is_overrule(row.get("reason"))
+    }
+    # A reopened row can still describe an active defect. Frozen history, not
+    # that status alone, identifies a closed ID whose regression needs a new ID.
     prior_closed = prior_frozen | {
         row["finding_id"] for row in prior_regression
-        if isinstance(row.get("finding_id"), str) and row.get("status") in ("fixed", "reopened")
+        if isinstance(row.get("finding_id"), str) and row.get("status") == "fixed"
     }
     history = prior_findings | prior_frozen | set(_ids(previous_brief.get("must_fix"))) | set(_ids(previous_brief.get("deferred")))
     history.update(row["finding_id"] for row in prior_regression if isinstance(row.get("finding_id"), str))
@@ -230,14 +277,18 @@ def protocol_errors(
         reject("regression_check must contain exactly one status for every prior finding, regression, and frozen ID")
     if current_ids & prior_closed:
         reject(f"reuses previously closed finding ID(s): {sorted(current_ids & prior_closed)}")
-    highest_prior = max((_number(item) for item in history), default=0)
+    highest_prior = max(history, key=_id_order, default="F0")
     new_ids = current_ids - history
-    if any(_number(item) <= highest_prior for item in new_ids):
-        reject(f"new finding ID(s) must be greater than prior ID F{highest_prior}")
+    if any(_id_order(item) <= _id_order(highest_prior) for item in new_ids):
+        reject(f"new finding ID(s) must be greater than prior ID {highest_prior}")
 
     for finding_id in history:
         row = regression_by_id.get(finding_id, {})
         status = row.get("status")
+        if (finding_id in prior_overruled and status == "not_verifiable"
+                and not (_is_overrule(row.get("evidence"))
+                         or _is_overrule(frozen_by_id.get(finding_id, {}).get("reason")))):
+            reject(f"prior human-overruled finding {finding_id} must retain its accepted-risk disclosure")
         if finding_id in prior_closed:
             if status == "open":
                 reject("a closed finding requires a new ID and reopened status for a new regression")
@@ -248,22 +299,25 @@ def protocol_errors(
                     reject(f"reopened closed finding {finding_id} must reference a new current finding ID in evidence")
         elif status in ("open", "reopened", "not_verifiable"):
             override = frozen_by_id.get(finding_id, {}).get("reason", "")
-            overruled = (status == "not_verifiable" and isinstance(override, str)
-                         and override.startswith("human-overruled:"))
+            overruled = (status == "not_verifiable"
+                         and (_is_overrule(row.get("evidence")) or _is_overrule(override)))
             if finding_id not in current_ids and not overruled:
                 reject(f"prior {status} finding {finding_id} must remain in current findings")
 
     if isinstance(brief, dict):
         expected_frozen = prior_closed | {
-            item for item, row in regression_by_id.items() if row.get("status") == "fixed"
+            item for item, row in regression_by_id.items()
+            if row.get("status") == "fixed" or (
+                row.get("status") == "not_verifiable" and _is_overrule(row.get("evidence")))
         }
         if expected_frozen - set(frozen_by_id):
             reject("rework_brief.frozen must retain closed history and newly fixed IDs")
         for finding_id, frozen in frozen_by_id.items():
             row = regression_by_id.get(finding_id, {})
             reason = frozen.get("reason", "")
-            overruled = (row.get("status") == "not_verifiable" and isinstance(reason, str)
-                         and reason.startswith("human-overruled:"))
+            overruled = (row.get("status") == "not_verifiable" and _is_overrule(reason))
+            if _is_overrule(row.get("evidence")) and not overruled:
+                reject(f"frozen ID {finding_id} must retain its human-overruled decision")
             if finding_id not in history or (finding_id not in expected_frozen and not overruled):
                 reject(f"frozen ID {finding_id} needs prior history and closure evidence")
     return errors
@@ -368,6 +422,8 @@ def main(argv: list[str] | None = None) -> int:
             ))
         elif contract == "specialist-report":
             errors.extend(specialist_protocol_errors(str(path), instance))
+        elif contract == "build-audit-handoff":
+            errors.extend(handoff_protocol_errors(str(path), instance))
 
     for path, instance, example_previous, expected_error in negative_documents:
         negative_errors: list[str] = []
@@ -380,6 +436,8 @@ def main(argv: list[str] | None = None) -> int:
                 negative_errors.extend(protocol_errors(str(path), instance, example_previous))
             elif schema_info[0] == "specialist-report":
                 negative_errors.extend(specialist_protocol_errors(str(path), instance))
+            elif schema_info[0] == "build-audit-handoff":
+                negative_errors.extend(handoff_protocol_errors(str(path), instance))
         if not any(expected_error in error for error in negative_errors):
             errors.append(
                 f"{path}: expected validator rejection containing {expected_error!r}; "

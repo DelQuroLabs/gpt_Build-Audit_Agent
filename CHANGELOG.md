@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.2.1-gpt-profile
+
+- Fixed all five confirmed 3.2.0 code-review findings in the validator; added 20 regression tests for a total of 43.
+- Distinguished active reopened defects from closed history; final accepted-risk decisions now fit null-brief reports without being labeled technical fixes.
+- Enforced unique canonical artifact paths, compared arbitrarily long decimal IDs without integer conversion, and accepted schema-valid integral JSON numbers.
+- Kept v2 schema shapes. Clarified semantic compatibility and preserved the historical folder-artifact packet as an expected rejection instead of rewriting its evidence.
+- Retained the old audit as superseded history; current evidence and scope are in docs/PROMPT-AUDIT.md and docs/CODE-REVIEW-FIXES.md.
+
 ## 3.2.0-gpt-profile
 
 - Defined early response states, required references, explicit tool budgets, and no-tool behavior.
@@ -7,7 +15,7 @@
 - Added complete generated installation prompts with shared specialist controls and a conservative size budget.
 - Added fixed GPT calibration packets, manual behavioral cases, and executable validator regressions.
 - Hardened JSON parsing; tools default off. Retained v2 field shapes with stricter history validation.
-- See docs/PROMPT-AUDIT.md for this audit's evidence and live-verification limits.
+- See docs/PROMPT-AUDIT-3.2.0.md for this historical audit; its clean conclusion was superseded by the code review.
 
 ## 3.1.0-gpt-profile
 

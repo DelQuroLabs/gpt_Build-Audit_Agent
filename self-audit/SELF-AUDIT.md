@@ -2,6 +2,8 @@
 
 Historical 3.0 record, not a current release claim. See `../docs/PROMPT-AUDIT.md` for the 3.2 audit and verification.
 
+3.2.1 correction: the historical build-handoff JSON lists `prompts/` as one changed artifact instead of individual files. It is preserved unchanged for provenance and is now an expected semantic-rejection fixture, not a valid current handoff. Its original test and PASS claims below are historical only.
+
 ## Method
 
 I used the upstream DelQuroLabs package as the protocol baseline, then treated the resulting pair as a build artifact and audited it against a GPT-specific spec. I did not treat the Builder's self-audit as approval. The retained validator was run locally:

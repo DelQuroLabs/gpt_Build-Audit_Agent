@@ -18,7 +18,7 @@ The upstream repository supplied the strong parts of the protocol: complete snap
 - output contracts, uncertainty, refusal/escalation, and user control;
 - eval coverage for normal, edge, adversarial, privacy, tool-failure, and regression behavior.
 
-The v2 JSON field shapes are retained. Version 3.2.0 strengthens semantic validation: later reports must retain all frozen/minor history. Older incomplete packets need correction. Package version and installation/source paths are recorded in `gpt-config.json`.
+The v2 JSON field shapes are retained. Version 3.2.1 repairs reopened history, final accepted-risk closure, artifact identity, long finding IDs, and integral-number compatibility. It includes 43 automated tests. Older ambiguous paths or incomplete histories need correction. Package version and installation/source paths are recorded in `gpt-config.json`. See `docs/PROMPT-AUDIT.md` for the current assessment; the 3.2.0 clean conclusion was superseded by the code review.
 
 ## Package contents
 

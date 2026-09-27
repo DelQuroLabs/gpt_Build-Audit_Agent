@@ -13,3 +13,6 @@ python tools/validate_examples.py path/to/current-audit.json --previous-report p
 ```
 
 The optional specialist reports and the specialist-promotion audit example are included in the no-argument fixture run. Specialist reports must match the Builder `task_id` and `build_revision`; they do not replace the complete Builder packet.
+# 3.2.1 validation note
+
+The default validator checks 11 positive objects and seven expected rejections. The unchanged historical `self-audit/build-handoff.v2.json` is now a negative case because it lists a folder as a changed file. `tests/test_review_regressions.py` additionally covers active reopened history, final accepted-risk closure, unique canonical paths, long IDs, and integer-valued JSON numbers through the CLI.

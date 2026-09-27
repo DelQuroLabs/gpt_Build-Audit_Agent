@@ -49,6 +49,8 @@ The final fenced JSON object in each Builder response uses:
 
 `not-run` is honest and permitted. Never convert it into a claimed pass. Use `agent_sandbox` only for checks actually run in that sandbox; do not label it project CI. See `schemas/build-audit-handoff.v2.schema.json` for exact types and required fields.
 
+Artifact paths are unique, canonical repository-relative file paths using `/` separators: no absolute/drive paths, backslashes, empty components, `.` or `..`. Do not list a directory as a changed artifact. A file has one operation, never simultaneous new/modified/deleted entries. The validator checks text identity without accessing paths; case and symlink aliases need target-repository review.
+
 ## 5. Auditor → Builder JSON
 
 The final fenced JSON object uses `contract: "audit-report"`, `version: 2`, and echoes `task_id` and `build_revision`, plus `audit_round`, `verdict`, `scope_review`, `verification_assessment`, `findings`, `regression_check`, `what_held_up`, and `open_questions`.
@@ -112,14 +114,16 @@ An explicit ad hoc initial review can use `adhoc`, revision 0, audit 1 only when
 
 Every later report's `regression_check` contains exactly one row for each ID in the union of the previous report's findings, regression rows, must_fix, deferred, and frozen entries. This includes MINOR/NIT and closed items. Carrying the union forward retains the task's maximum allocated ID even when earlier reports are no longer in context.
 
-- An unresolved prior ID marked `open`, `not_verifiable`, or `reopened` remains in current findings, with the exception for documented human overrules below.
+- An unresolved prior ID marked `open`, `not_verifiable`, or `reopened` remains in current findings, with the exception for documented human overrules below. `reopened` alone does not close an active ID. Closed history is established by frozen entries or a prior `fixed` row, not by the word `reopened`.
 - A `fixed` row cannot also be an active finding. On a continuing FAIL, add newly fixed IDs to frozen and retain all previously closed IDs there.
 - Closed IDs are never reused. A new regression of a closed defect receives a fresh ID greater than every historical ID. The old row is `reopened`, and its evidence names the new F ID and concrete regression. Previously closed source that cannot be inspected is `not_verifiable`; do not invent a fix or regression.
-- A human may explicitly accept a finding's risk. Record `frozen.reason` starting `human-overruled:` followed by the supplied decision, rationale, owner, and review/expiry date. Use `not_verifiable` in its regression row and explicitly say accepted risk is not a technical fix. Do not fabricate an overrule or relabel it fixed. A prior overrule remains disclosed in later rows. The validator checks structure, not the authenticity of human approval.
+- A human may explicitly accept a prior finding's risk. Set its regression status to `not_verifiable` and begin `regression_check.evidence` with `human-overruled:` followed by the supplied decision, rationale, owner, review/expiry date, and an explicit statement that accepted risk is not a technical fix. Remove the ID from active findings. On continuing FAIL, also retain this decision in `frozen.reason`. With a null rework brief (PASS, PASS_WITH_NOTES, or final FAIL), the regression row holds the decision; never manufacture a rework brief. Legacy continuing-FAIL packets may hold the full prefixed decision in frozen.reason only. An empty prefix is not a decision. Preserve accepted-risk disclosure on later not-verifiable rows; only independently verified repair may subsequently use `fixed`. Do not fabricate approval. The validator checks structure, not the authenticity or sufficiency of human approval.
 - Frozen and active IDs are disjoint. Frozen entries need prior history plus closure evidence, and IDs must be unique. A round-1 report has no frozen history. Frozen can retain old IDs whose new regressions are tracked under fresh IDs.
 - The Auditor alone assigns F IDs. Builder flags newly discovered issues and requests an updated rework scope instead of allocating IDs. Specialist candidates duplicate an existing open root cause under its existing F ID; only new issues receive new IDs.
 
 The JSON field shapes and protocol version remain v2. These are clarified semantic checks; older packets that omit frozen/minor history must be corrected before validation. Invalid/partial history is never silently migrated.
+
+Whole-number JSON values such as `1` and `1.0` have the same schema meaning for rounds/revisions; booleans and fractional values do not. Decimal F IDs are ordered by numeric magnitude without machine-integer conversion. Validate each transition as it occurs and retain the validated chain: `--previous-report` alone cannot authenticate older evidence or reconstruct reports that were not supplied.
 
 ## 10. Tool and installation bounds
 
