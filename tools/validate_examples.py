@@ -14,6 +14,7 @@ import argparse
 import json
 import re
 import sys
+from decimal import Decimal, DecimalException
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
@@ -56,6 +57,26 @@ NEGATIVE_EXAMPLES = [
      "recommended_to_auditor references missing finding ID(s)"),
 ]
 STOP_CONDITION = re.compile(r"^(F[1-9][0-9]*): .+$")
+MAX_NUMBER_CHARACTERS = 4096
+MAX_NUMBER_EXPONENT = 10000
+MAX_INTEGER_DIGITS = 4096
+
+
+def _exact_number(value: str) -> int | Decimal:
+    """Keep fractions exact; normalize integral forms without unbounded expansion."""
+    if len(value) > MAX_NUMBER_CHARACTERS:
+        raise ValueError("JSON number exceeds validation limits")
+    try:
+        number = Decimal(value)
+        if not number.is_finite() or abs(number.as_tuple().exponent) > MAX_NUMBER_EXPONENT:
+            raise ValueError("JSON number exceeds validation limits")
+        if number != number.to_integral_value():
+            return number
+        if number and number.adjusted() >= MAX_INTEGER_DIGITS:
+            raise ValueError("JSON number exceeds validation limits")
+        return int(number)
+    except DecimalException:
+        raise ValueError("JSON number cannot be represented within validation limits") from None
 
 
 def load_json(path: Path) -> Any:
@@ -73,7 +94,8 @@ def load_json(path: Path) -> Any:
     if path.stat().st_size > 2 * 1024 * 1024:
         raise ValueError("JSON input exceeds the 2 MiB validation limit")
     with path.open(encoding="utf-8-sig") as handle:
-        return json.load(handle, object_pairs_hook=unique_object, parse_constant=reject_constant)
+        return json.load(handle, object_pairs_hook=unique_object, parse_constant=reject_constant,
+                         parse_int=_exact_number, parse_float=_exact_number)
 
 
 def get_schema(instance: Any) -> tuple[str, Path] | None:
@@ -115,7 +137,9 @@ def _ids(value: Any) -> list[str]:
 def _id_order(value: str) -> tuple[int, str]:
     """Compare decimal IDs without Python's bounded string-to-int conversion."""
     match = re.fullmatch(r"F([1-9][0-9]*)", value)
-    digits = match.group(1) if match else ""
+    if match is None:
+        raise ValueError("finding IDs must match the complete F<n> form")
+    digits = match.group(1)
     return len(digits), digits
 
 
@@ -139,7 +163,7 @@ def handoff_protocol_errors(label: str, instance: Any) -> list[str]:
         if not isinstance(path, str):
             continue  # The schema handles missing and non-string paths.
         paths.append(path)
-        if (not path or "\\" in path or PureWindowsPath(path).drive
+        if (not path or "\x00" in path or "\\" in path or PureWindowsPath(path).drive
                 or PurePosixPath(path).is_absolute()
                 or any(part in ("", ".", "..") for part in path.split("/"))):
             errors.append(f"{label}: artifact paths must be canonical repository-relative paths using / separators")
@@ -277,9 +301,15 @@ def protocol_errors(
         reject("regression_check must contain exactly one status for every prior finding, regression, and frozen ID")
     if current_ids & prior_closed:
         reject(f"reuses previously closed finding ID(s): {sorted(current_ids & prior_closed)}")
-    highest_prior = max(history, key=_id_order, default="F0")
     new_ids = current_ids - history
-    if any(_id_order(item) <= _id_order(highest_prior) for item in new_ids):
+    try:
+        highest_prior = max(history, key=_id_order, default=None)
+        nonmonotonic = (highest_prior is not None
+                        and any(_id_order(item) <= _id_order(highest_prior) for item in new_ids))
+    except ValueError:
+        reject("finding IDs must match the complete F<n> form")
+        return errors
+    if nonmonotonic:
         reject(f"new finding ID(s) must be greater than prior ID {highest_prior}")
 
     for finding_id in history:

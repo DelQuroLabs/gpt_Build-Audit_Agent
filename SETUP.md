@@ -1,4 +1,4 @@
-# Setup Guide - GPT Build <-> Audit Pair 3.2.1
+# Setup Guide - GPT Build <-> Audit Pair 3.2.2
 
 This is a manual, human-supervised pair of private agents. The package proposes and audits GPT design artifacts; it does not install a target GPT, run an unattended loop, or publish anything.
 

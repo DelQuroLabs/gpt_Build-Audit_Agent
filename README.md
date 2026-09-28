@@ -18,7 +18,7 @@ The upstream repository supplied the strong parts of the protocol: complete snap
 - output contracts, uncertainty, refusal/escalation, and user control;
 - eval coverage for normal, edge, adversarial, privacy, tool-failure, and regression behavior.
 
-The v2 JSON field shapes are retained. Version 3.2.1 repairs reopened history, final accepted-risk closure, artifact identity, long finding IDs, and integral-number compatibility. It includes 43 automated tests. Older ambiguous paths or incomplete histories need correction. Package version and installation/source paths are recorded in `gpt-config.json`. See `docs/PROMPT-AUDIT.md` for the current assessment; the 3.2.0 clean conclusion was superseded by the code review.
+The v2 JSON field shapes are retained. Version 3.2.2 fixes strict identifier matching, exact numeric decoding, and NUL artifact-path rejection while retaining the five earlier repairs. Both editions include 60 automated tests. Invalid IDs, ambiguous paths, fractional counters, or incomplete histories need correction. Package metadata is in `gpt-config.json`; see `docs/PROMPT-AUDIT.md` for current evidence. Earlier clean assessments are superseded historical records.
 
 ## Package contents
 
@@ -90,7 +90,7 @@ I applied the upstream protocol to this pair itself. The first draft was intenti
 4. **Evidence confusion:** the final prompts distinguish static prompt review, supplied transcripts, sandbox checks, project CI, and live-platform verification.
 5. **Rework drift:** the final Builder preserves full current snapshots, prior finding IDs, frozen items, and unresolved not-verifiable items.
 
-The validation samples in `self-audit/` pass the retained v2 schemas and protocol rules. The self-audit is calibration evidence, not proof that every future GPT build will be correct.
+The historical `self-audit/audit-pass.v2.json` remains a positive fixture. Its handoff contains a directory-style artifact path and is now an explicit expected-rejection fixture; it is not a valid current handoff. These records are calibration/history, not proof that future GPT builds will be correct.
 
 This self-audit records the 3.0 core profile. `BUILD-STRENGTH-REVIEW.md` is the historical 3.1 review. Current 3.2 results and scope are in `docs/PROMPT-AUDIT.md`; historical scores and test claims are not current verification.
 

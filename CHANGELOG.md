@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.2.2-gpt-profile
+
+- Fixed three re-audit defects: trailing-newline identifiers, fractional values rounded into integers, and NUL artifact paths.
+- Added 17 input-boundary regression tests; all 60 tests pass in both editions. The earlier five repairs remain covered.
+- Enforced whole-string schema patterns, exact decimal JSON decoding with explicit resource limits, and NUL rejection without filesystem access.
+- Preserved v2 field shapes, valid integral numeric spellings, and long string finding IDs. Numeric input limits are documented in contract.md and schemas/README.md.
+- Superseded the 3.2.1 clean assessment; retained its audit as history and corrected stale setup/fixture guidance. Current scope and results are in docs/PROMPT-AUDIT.md.
+
 ## 3.2.1-gpt-profile
 
 - Fixed all five confirmed 3.2.0 code-review findings in the validator; added 20 regression tests for a total of 43.

@@ -1,5 +1,5 @@
 {
-  "package_version": "3.2.1-gpt-profile",
+  "package_version": "3.2.2-gpt-profile",
   "protocol_version": 2,
   "source_profile": "DelQuroLabs/gpt_Build-Audit_Agent",
   "builder": {

@@ -49,7 +49,7 @@ The final fenced JSON object in each Builder response uses:
 
 `not-run` is honest and permitted. Never convert it into a claimed pass. Use `agent_sandbox` only for checks actually run in that sandbox; do not label it project CI. See `schemas/build-audit-handoff.v2.schema.json` for exact types and required fields.
 
-Artifact paths are unique, canonical repository-relative file paths using `/` separators: no absolute/drive paths, backslashes, empty components, `.` or `..`. Do not list a directory as a changed artifact. A file has one operation, never simultaneous new/modified/deleted entries. The validator checks text identity without accessing paths; case and symlink aliases need target-repository review.
+Artifact paths are unique, canonical repository-relative file paths using `/` separators: no NUL characters, absolute/drive paths, backslashes, empty components, `.` or `..`. Do not list a directory as a changed artifact. A file has one operation, never simultaneous new/modified/deleted entries. The validator checks text identity without accessing paths; case and symlink aliases need target-repository review.
 
 ## 5. Auditor → Builder JSON
 
@@ -124,6 +124,8 @@ Every later report's `regression_check` contains exactly one row for each ID in 
 The JSON field shapes and protocol version remain v2. These are clarified semantic checks; older packets that omit frozen/minor history must be corrected before validation. Invalid/partial history is never silently migrated.
 
 Whole-number JSON values such as `1` and `1.0` have the same schema meaning for rounds/revisions; booleans and fractional values do not. Decimal F IDs are ordered by numeric magnitude without machine-integer conversion. Validate each transition as it occurs and retain the validated chain: `--previous-report` alone cannot authenticate older evidence or reconstruct reports that were not supplied.
+
+Task and F/S finding identifiers must match their complete schema form, with no leading/trailing characters or normalization. The local validator parses numeric values exactly, never rounding fractions into integers. Its input limits are 2 MiB per JSON file, 4,096 characters per numeric literal, absolute decimal exponent at most 10,000, and at most 4,096 digits for expanded integers. Inputs beyond these limits are read errors, not valid reports. These numeric limits do not apply to string finding IDs. Correct invalid input; never trim identifiers or round values silently.
 
 ## 10. Tool and installation bounds
 
