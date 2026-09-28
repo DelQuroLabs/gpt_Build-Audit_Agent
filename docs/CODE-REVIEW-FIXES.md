@@ -1,6 +1,6 @@
-# Confirmed code-review repairs - 3.2.1
+# Confirmed Code-review Repairs Through 3.2.2
 
-Date: 2026-09-27. Applies to full and lean editions. All five are FIXED by the same implementation and tests. Prior code-review priorities are retained; the prompt rubric classifies each as MAJOR because valid workflow paths could produce materially wrong or unusable results. This is not live-model certification.
+Date: 2026-09-28. Applies to full and lean editions. R1-R5 were repaired in 3.2.1 and remain covered. The fresh re-audit identified R6-R8, now repaired in 3.2.2. All eight are FIXED for their reproduced triggers by the same implementation and tests. The prompt rubric classifies R1-R6 as MAJOR and R7-R8 as MINOR; code priorities are a separate scale. No live-model certification is claimed.
 
 ## R1 - Active reopened blocker lost into PASS
 
@@ -62,8 +62,40 @@ Replacement contract: "Whole-number JSON values such as 1 and 1.0 have the same 
 
 Verification: integral previous and current round/revision numbers pass the CLI; True and 1.5 remain rejected before semantic history validation. All passed. Effort: S.
 
-## Release evidence and limits
+## R6 - Trailing-newline identifiers bypassed strict identity
 
-Both editions pass 43 unit tests, including 20 new tests with parameterized CLI cases. The example suite accepts 11 positive objects and rejects seven designated negatives. Sources and generated prompts agree. Full/lean Python files are identical; schemas are structurally identical.
+Severity: MAJOR; priority Medium/P2. Locations: all three schemas' task/finding/reference patterns; tools/validate_examples.py, _id_order and monotonic allocation. Status: FIXED in 3.2.2.
 
-No live model, host setup, external integration, older Python, or second operating system was tested. See PROMPT-AUDIT.md for the weighted 96/100 assessment and scope. The old 3.2.0 ZIPs are superseded by 3.2.1, not silently updated in place.
+Observed before repair: a final newline passed the schemas' dollar end anchor. Round 1 accepted F100 followed by a newline; a later report could allocate F2 because the ordering helper fell back to a zero-like key for malformed IDs. Task IDs and matching S-ID recommendations also accepted trailing newlines. Root cause: inconsistent whole-string identity rules. Impact: invalid identity and nonmonotonic finding allocation.
+
+Repair: replace dollar anchors with a strict end-of-string assertion (negative lookahead for any remaining character). _id_order now raises a generic validation error on malformed IDs rather than using a fallback. CLI schema checks reject malformed current and prior reports before semantic history processing. Do not trim IDs.
+
+Verification: all schema identifier patterns reject trailing line endings; all three task-ID CLI cases and the specialist-ID/recommendation case reject; the original two-report bypass rejects its malformed previous report; normalized F100 followed by F2 still fails monotonicity. Existing F9 -> F10 and 5,000-digit ID cases still pass. Tests: test_input_boundaries.py and test_review_regressions.py. Effort: S.
+
+## R7 - Fractional numeric inputs rounded into integers
+
+Severity: MINOR; priority Medium/P2. Location: tools/validate_examples.py, load_json and _exact_number. Status: FIXED in 3.2.2.
+
+Observed before repair: raw audit_round 1.0000000000000001 decoded as 1.0; raw build_revision 1e-400 decoded as 0.0. Both were accepted despite being mathematically fractional. Root cause: binary-float decoding lost information before schema validation. Impact: invalid counters could be accepted; ordinary integer inputs offered a workaround.
+
+Repair: parse JSON numeric literals through exact Decimal values; normalize mathematically integral values to int, keep fractions exact for schema rejection. Preserve valid 1.0 and exponent-equivalent values. Bound numeric literal length (4,096 characters), absolute stored base-10 exponent (10,000), and expanded integer digits (4,096); retain the 2 MiB file limit. Oversized literals are clean read errors, not crashes. String IDs remain unaffected.
+
+Verification: exact high-precision/underflowing fractions and malformed prior history reject; integral decimal/exponent forms pass, including rework continuity; changing Decimal context precision does not alter classification; numeric limits and nonstandard constants fail cleanly. A separate seeded exact-rational oracle checks 1,000 decimal literals per edition. Tests: test_input_boundaries.py. Effort: M.
+
+## R8 - NUL artifact path accepted
+
+Severity: MINOR; priority Medium/P2. Location: tools/validate_examples.py, handoff_protocol_errors. Status: FIXED in 3.2.2.
+
+Observed before repair: a schema-valid artifact path containing an embedded NUL passed the CLI, while a read-only filesystem stat rejected it as an embedded-null path. Root cause: canonical-path checks omitted NUL. Impact: downstream filesystem operations could fail despite a successful validation.
+
+Repair: explicitly reject NUL before interpreting path components. Keep the generic canonical-path diagnostic; do not echo the supplied path or access the filesystem.
+
+Verification: NUL at the beginning, middle, and end rejects without traceback or submitted-value leakage. A mock that fails on filesystem stat/resolve confirms validation does not touch the filesystem. Valid nested paths with spaces and duplicate-operation rejection remain covered. Tests: test_input_boundaries.py and test_review_regressions.py. Effort: S.
+
+## Release Evidence and Limits
+
+Both editions pass 60 automated tests: 43 retained and 17 new input-boundary methods, including parameterized CLI cases. The validator suite accepts 11 positive objects and rejects seven designated negatives. Eight generated prompts match sources. Tools/tests are byte-identical and parsed schema objects identical across editions.
+
+Fresh ZIP extraction reruns these checks and the 13 original re-audit probes. Separate exact-rational comparisons cover 1,000 numeric literals per edition. Actual output and archive hashes accompany the delivered release.
+
+No live model, host setup, external integration, older Python, or second operating system was tested. See PROMPT-AUDIT.md for the weighted 96/100 assessment and its bounded scope. The 3.2.0 and 3.2.1 ZIPs remain historical artifacts, superseded by 3.2.2.

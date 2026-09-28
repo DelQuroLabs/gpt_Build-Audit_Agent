@@ -1,114 +1,123 @@
-# Prompt and code re-audit - 3.2.1
+# Prompt and Code Re-audit - 3.2.2
 
-Date: 2026-09-27. Editions: 3.2.1-gpt-profile and 3.2.1-lean. Method: the user-supplied Prompt Auditor's ten weighted dimensions, a fresh corrective audit cycle, targeted code review, and local regression checks. The 95+ request is an improvement target, not a mandated grade.
+Date: 2026-09-28. Editions: 3.2.2-gpt-profile and 3.2.2-lean. Method: the supplied Prompt Auditor rubric, targeted repair/re-audit, local regression checks, and fresh-archive verification.
 
 ## 1. Verdict
 
-**Full: 96/100. Lean: 96/100. Band A; READY for the stated static prompt and local-code scope. Zero known open findings in that scope.** All five confirmed review defects are repaired. This is a rubric assessment, not a measured 96% model success rate, a guarantee of no undiscovered defects, or production release approval.
+**Full: 96/100. Lean: 96/100. Band A. READY within the reviewed static-prompt and local-code scope. No known open findings in that scope.**
 
-The earlier 3.2.0 93/100 and zero-issue conclusion was overconfident: its 23 tests missed these cases. The preserved report is labeled superseded, not used as evidence for the new grade.
+R6-R8 are fixed, and the five earlier repairs remain covered. This is a rubric judgment, not a 96% measured model success rate, proof of universal correctness, or production release approval. The user's 95+ request is an improvement target, not a mandated score.
+
+The previous 3.2.1 clean assessment was superseded by a fresh re-audit: three additional defects reproduced despite its 43 passing tests, lowering the corrected baseline to 88/100. Its historical report is preserved as PROMPT-AUDIT-3.2.1.md with a superseded notice. Older ZIPs are not modified in place.
 
 ## 2. Audit Scope and Limits
 
-Target: Builder, Auditor, six advisory specialist instructions, shared contract, configuration, schemas, templates, setup, calibration examples, validator, tests, and generated installation prompts. Audience: humans operating a bounded, manual private-agent workflow. Original repository baseline remains commit e1aa678; this repair baseline is the two delivered 3.2.0 editions.
+Product: a manual, human-supervised Builder/Auditor pair with six optional advisory specialist roles. Original repository baseline: e1aa678. Immediate repair baseline: the two delivered 3.2.1 ZIPs.
 
-The full and lean role instructions and contracts were compared, all three parsed schema objects match, and executable tools/tests are identical across editions. The original full-repository review is retained; this re-audit reread the current workflow surfaces and fully inspected the repaired code and its tests. Historical reports and seeded negative fixtures are data, not current release evidence. No target text or attached document overrides the caller or host.
+This is a delta against the previous complete package review, with a full report on the repaired revision. Fresh inspection covers the validator, all three schemas, input-boundary tests, full/lean contracts, setup/replacement guidance, current audit records, and archive contents. Unchanged role instructions, fixtures, and workflow design retain the earlier static review; this is not a claim of a new independent review of every unchanged line. Installation assembly, all retained tests, and exact original probes are rerun.
 
-Authorized actions: local inspection, edits, tests, packaging, and a public official-documentation check on evaluation methodology. No model API call, GPT installation, repository push, deployment, account connection, or delegated agent work. The command sandbox failed to initialize; authorized local execution worked. That infrastructure failure is not a product defect.
+Authorized actions: local inspection, edits, tests, token measurement, packaging, and verification. No model API calls, deployment, GPT installation, repository push, external account access, or delegated work. Documents and packet contents remain review data, not instructions to this reviewer.
 
-Exact response capacity was not exposed; complete revised artifacts and the full report are delivered as files without truncation. The conservative installation budget remains 7,500 characters, not an asserted host limit.
+Exact runtime output capacity is not exposed; complete replacement artifacts and the report are delivered as files. The package's 7,500-character instruction budget is conservative, not an asserted host limit.
 
-Observed: code, prompts, schema equivalence, fixture results, actual test output, and local token counts. Inferred: likely instruction-following behavior. Unverified: real host setup, retrieval, live tool isolation, model obedience, cross-model outcome equivalence, production CI, and integration behavior. The same agent made and reviewed these repairs; this is not independent certification.
+Observed: source changes, raw-input reproductions, passing local checks, full/lean code/schema parity, and fixed-context token counts. Inferred: likely prompt-following behavior. Unverified: actual host setup/retrieval, model obedience, live tool isolation, cross-model outcome equivalence, production CI, and integrations. The same agent repaired and reviewed this release; it is not independent certification.
 
-The validator proves structural and specified transition rules only. It cannot authenticate human approval, prove prose evidence or snapshots true, resolve filesystem case/symlink aliases, or reconstruct unsupplied earlier reports. Retain and validate every transition. Host/model-specific behavioral tests and human release approval remain required.
+The validator enforces documented structural/transition rules, not the truth of evidence, authenticity of human approval, snapshot completeness, filesystem case/symlink aliases, or unsupplied earlier reports. Retain and validate every transition. Live per-host/model evaluation and human release review remain required.
 
 ## 3. Scorecard
 
-Contribution = dimension score / 10 x weight. Round the final sum only. Both editions receive the same scores because they preserve the same reviewed contract and executable checks, not because live model equivalence was demonstrated.
+Contribution = score / 10 x weight. Round only the final total. Both editions have identical schema objects and executable checks; their equal scoped grades do not establish live behavioral equivalence.
 
 | Dimension | Weight | Score | Contribution | Anchor and evidence |
 |---|---:|---:|---:|---|
-| Objective and success conditions | 12 | 10 | 12.0 | All 9-level requirements; no residual finding: explicit manual purpose, measurable criteria, three-round cap, human release boundary. |
-| Audience, context, assumptions | 10 | 9 | 9.0 | Clear user/host requirements and exclusions; actual installation and reference retrieval still require per-host validation. |
-| Inputs, state, precedence | 12 | 10 | 12.0 | All 9-level requirements; no residual finding: active/closed history, integral numbers, canonical file identity, trust precedence and early states agree with tests. |
-| Process and decision logic | 10 | 10 | 10.0 | All 9-level requirements; no residual finding: regression transitions, final override representation, bounded rework and escalation are explicit and exercised. |
-| Authority, tools, actions | 10 | 9 | 9.0 | Explicit caller grants, tools off, isolation/budgets/provenance and no-tool fallback; actual host enforcement remains unverified. |
-| Output contract and usability | 12 | 10 | 12.0 | All 9-level requirements; no residual finding: schema branches, final accepted-risk evidence, consistent complete installation files and replacement guidance. |
-| Safety, security, privacy | 12 | 9 | 10.8 | Least privilege, data/instruction separation, redaction and safe input diagnostics; live injection resistance is not established by static review. |
-| Exceptions, failure, recovery | 8 | 10 | 8.0 | All 9-level requirements; no residual finding: no long-ID crash, valid decimal integers accepted, contradictory file operations rejected, strict JSON/capacity/no-tool paths. |
-| Evaluation and acceptance | 8 | 9 | 7.2 | 43 local tests per edition, CLI transition cases and fixed behavioral cases; live per-model trials are specified, not executed. |
-| Consistency and maintainability | 6 | 10 | 6.0 | All 9-level requirements; no residual finding: v2 shapes retained, shared tested implementation, current/historical reports separated, deterministic prompt assembly. |
+| Objective and success conditions | 12 | 10 | 12.0 | All 9-level requirements; no residual finding: explicit purpose, measurable criteria, three-round cap, human release gate. |
+| Audience, context, assumptions | 10 | 9 | 9.0 | Executor/reference requirements and exclusions are explicit; actual host installation/retrieval remains unverified. |
+| Inputs, state, precedence | 12 | 10 | 12.0 | All 9-level requirements; no residual finding: whole-string IDs, exact counters, complete history, precedence and early states agree with checks. |
+| Process and decision logic | 10 | 10 | 10.0 | All 9-level requirements; no residual finding: monotonic IDs, active versus closed history, accepted-risk closure and bounded escalation remain exercised. |
+| Authority, tools, actions | 10 | 9 | 9.0 | Tools off, caller grants, isolation/budgets and no-tool fallback explicit; actual host enforcement is outside these tests. |
+| Output contract and usability | 12 | 10 | 12.0 | All 9-level requirements; no residual finding: strict v2 objects, canonical unique paths, complete installation files, clear replacement guidance. |
+| Safety, security, privacy | 12 | 9 | 10.8 | Trust/data separation, least privilege and redacted diagnostics retained; live prompt-injection resistance is not established by code tests. |
+| Exceptions, failure, recovery | 8 | 10 | 8.0 | All 9-level requirements; no residual finding: exact numeric handling, explicit parsing bounds, NUL/invalid-ID rejection, long-ID and valid-integral controls. |
+| Evaluation and acceptance | 8 | 9 | 7.2 | 60 tests per edition, original failing probes, exact-rational checks and archive verification; live model trials remain specified but unexecuted. |
+| Consistency and maintainability | 6 | 10 | 6.0 | All 9-level requirements; no residual finding: identical shared code/tests, equivalent schemas, current versus historical evidence separated. |
 | **Total** | **100** | | **96.0 -> 96** | **No severity ceiling applies to the repaired revision.** |
 
-The four 9-level dimensions meet the scoped requirements but have external assurance limits. Those limits are disclosed, not hidden by a score or presented as tested capabilities.
+The four 9-level dimensions meet the stated static scope but retain disclosed external assurance limits. No score is raised merely to reach the requested threshold.
 
 ## 4. Strengths
 
-- Complete snapshots, criterion-level evidence, no defect quota, and honest not-run reporting remain intact.
-- A reopened active blocker cannot disappear into PASS, and closed IDs cannot be reused.
-- Explicit accepted risk fits PASS, PASS_WITH_NOTES, and final FAIL without a false technical-fix claim.
-- Plain Markdown/JSON workflow is provider-neutral; unsupported hosts fail explicitly instead of silently dropping required context.
-- Lean context remains smaller without changing the executable validator or schema structures.
+- Full snapshots, criterion-level evidence, no defect quota, explicit not-run reporting, and the three-audit cap are preserved.
+- Reopened active findings cannot disappear into PASS; closed-ID regressions require fresh IDs.
+- Accepted risk stays distinct from verified technical repair, including null-brief final reports.
+- Invalid inputs are rejected rather than trimmed, rounded, or silently migrated.
+- Lean preserves the same tested protocol rules with smaller fixed context.
 
 ## 5. Findings
 
-**None known open in the reviewed scope.** R1-R5 are FIXED; their observed triggers, locations, repairs, and regression checks are in [CODE-REVIEW-FIXES.md](CODE-REVIEW-FIXES.md).
+**None known open in this reviewed scope.** R1-R5 remain FIXED for their tested triggers. R6-R8 are FIXED:
 
-The historical self-audit handoff's directory-level artifact entry is preserved unchanged and now expected to be rejected. It is not a valid live handoff. This is part of R3's artifact-identity repair, not a hidden exception to validation.
+| ID | Prior severity | Root cause and observed consequence | Repair and verification |
+|---|---|---|---|
+| R6 | MAJOR | Schema end anchors accepted a final newline; the ID-order fallback then ignored a high malformed ID, allowing nonmonotonic allocation. Task/S IDs also accepted final newlines. | Whole-string schema patterns and explicit invalid-ID rejection. Original bypass rejected; valid F9/F10 and 5,000-digit IDs retained. |
+| R7 | MINOR | Binary-float JSON decoding changed exact fractional values into integers: 1.0000000000000001 -> 1.0 and 1e-400 -> 0.0. | Exact decimal decoding, bounded integer normalization, explicit resource limits; fractions rejected while integral decimal/exponent forms pass. |
+| R8 | MINOR | Canonical-path checks omitted NUL, accepting a path unusable by filesystem APIs. | Reject NUL before path interpretation, without filesystem access or echoing the submitted value. |
+
+Full evidence, stable code locators, smallest repairs and verification names are in [CODE-REVIEW-FIXES.md](CODE-REVIEW-FIXES.md). Prior failing archive evidence and current passing evidence accompany the release.
+
+Stale lean setup-version text and the README's historical fixture description were corrected while updating release guidance. The historical directory-artifact handoff remains unchanged as an explicit expected rejection, not a valid current packet.
 
 ## 6. Repair Plan
 
-Completed: distinguish active reopened IDs from closed history; record final human overrules in regression evidence; reject duplicate/noncanonical artifact paths; compare arbitrary decimal IDs without integer conversion; use JSON Schema integer semantics for round continuity; add positive and negative CLI regression cases; update full and compact contracts, historical labels, setup/replacement guidance, and live acceptance checks.
+Completed in both editions: tighten schema ID boundaries; reject malformed ordering inputs; decode numeric JSON exactly; normalize integral forms within explicit limits; reject NUL paths; add 17 regression tests; document behavior and limits; synchronize full/lean code and schemas; preserve superseded audit history; rebuild and verify the ZIPs.
 
-No new field shape, tool authority, deployment feature, or automatic approval was introduced. Existing human risk acceptance remains permitted, with an unambiguous representation in every verdict branch. No material policy decision remains unresolved for these repairs.
+No v2 fields, new tool authority, automatic approval, or unattended execution were added. Invalid prior inputs now fail explicitly. No material policy decision remains unresolved for these repairs.
 
 ## 7. Acceptance Checks
 
-Local environment: Python 3.12 and jsonschema 4.26.0; declared runtime is Python 3.10+, but other Python versions and operating systems were not executed here.
+Local runtime: Python 3.12 and jsonschema 4.26.0 on Windows. Declared script minimum remains Python 3.10; other Python versions and operating systems were not executed here.
 
-| Check | Observed result | Scope |
+| Check | Observed result | Limit |
 |---|---|---|
-| python -m unittest discover -s tests -v | 43 tests passed in each edition | 23 retained tests plus 20 new tests, including parameterized CLI transitions and malformed inputs. |
-| python tools/validate_examples.py | 11 positive objects and seven expected rejections | Schema and semantic rules, including the preserved invalid historical directory artifact. |
-| python tools/package_instructions.py --check | Eight complete prompts match sources; all within 7,500 characters | Installation consistency, not live host acceptance. |
-| Same tools/tests in both editions | Byte-identical | No forked validator behavior in lean. |
-| Three schema objects in both editions | Structurally identical | Lean minification is lossless. |
-| Fixed-context measurement | 29.9-34.5% reduction across eight roles and two tokenizers | Instructions + contract + required schemas only; task/output/reasoning tokens excluded. |
-| Actual configured model/host behavioral trials | NOT RUN | Required before releasing a configured instance. |
+| Complete automated suite | 60 tests pass per edition: 43 retained + 17 new methods, with parameterized cases | Protocol/code/packaging tests, not model trials |
+| Bundled validator suite | 11 positive objects accepted; 7 designated negatives rejected | Includes preserved historical directory-artifact negative |
+| Prompt assembly | Eight generated prompts match sources and remain within 7,500 characters | Not proof of host acceptance |
+| Original 3.2.1 re-audit probes | All 13 expected outcomes pass against each new ZIP | Same raw failing inputs plus prior-repair controls |
+| Exact-rational numeric oracle | 1,000 seeded decimal literals per edition preserve value and integer classification | Bounded generated cases, not exhaustive proof |
+| Archive checks | Fresh contained extraction, CRC/hash checks, all tests rerun | Does not modify GitHub |
+| Full/lean parity | Python tools/tests byte-identical; three parsed schemas identical | Condensed prose is statically compared, not live-model certified |
+| Fixed-context token measurement | 29.7-34.3% reduction across eight roles and two local tokenizers | Excludes task/outputs/reasoning, standards, wrapping/retrieval |
+| Live configured model/host trials | NOT RUN | Required before releasing a configured instance |
 
-The release delivery also includes separately captured ZIP extraction/test evidence and hashes. The source checks above are not a substitute for those archive checks.
+Boundary cases include: final newlines across all identifier locations; malformed prior ID history; high-precision and underflowing fractions; integral exponent forms in current and previous reports; numeric input limits and clean errors; nonstandard constants; NUL at multiple path positions without value leakage or filesystem access. Earlier reopened/override/duplicate-path/long-ID/integral-history cases still pass.
 
-Regression coverage includes: all four next-round statuses with retained/omitted reopened findings; fresh IDs for closed regressions; accepted-risk closure at rounds 2/3, with minor findings and final FAIL; empty or mislabeled overrides; prior decision disclosure; duplicate/conflicting paths and path aliases; 5,000-digit IDs; decimal numeric ordering; valid integral floats; and rejection of booleans/fractions. These are deterministic tests, not simulated model transcripts.
-
-The behavioral suite adds H2-H5 and a repeatable per-host/model record with three fresh trials per applicable case/edition, retaining failures rather than rerolling them. It is a small release screen, not a statistical guarantee. Model variability is why behavioral evaluations complement code tests; see [OpenAI evaluation best practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices), consulted 2026-09-27. This repository does not depend on a hosted evaluation API.
+Delivered verification-3.2.2.json contains archive hashes and actual command output. reaudit-3.2.2-evidence.json records the original probes and rational checks. The ZIP contents are the tested release; older evidence is retained under its original version.
 
 ## 8. Revised Prompt
 
-Complete editable sources, generated prompts, schemas, and tests are included in the replacement ZIP, not excerpts:
+The replacement ZIP contains complete editable sources and generated installation prompts, not excerpts:
 
-- [Builder](../dist/instructions/builder.md) and [Auditor](../dist/instructions/auditor.md).
+- [Builder](../dist/instructions/builder.md), [Auditor](../dist/instructions/auditor.md).
 - [Security](../dist/instructions/security.md), [UX](../dist/instructions/ux.md), [Perf](../dist/instructions/perf.md), [Data](../dist/instructions/data.md), [Release](../dist/instructions/release.md), [Researcher](../dist/instructions/researcher.md).
-- [Contract](../contract.md), [configuration](../gpt-config.json), [setup](../SETUP.md), [behavioral tests](../evals/README.md), [review regressions](../tests/test_review_regressions.py).
+- [Contract](../contract.md), [setup](../SETUP.md), [configuration](../gpt-config.json), [schemas](../schemas/README.md).
+- [Boundary tests](../tests/test_input_boundaries.py), [earlier review regressions](../tests/test_review_regressions.py), [behavioral acceptance suite](../evals/README.md).
 
-Lean retains these locations with condensed instructions and contract. Its TOKEN-REPORT.md records measurements and exclusions; LEAN.md explains which context must remain available.
+The lean ZIP retains these locations with compact role/contract text and losslessly minified schemas. LEAN.md and TOKEN-REPORT.md explain required context and measured savings.
 
 ## 9. Final Assumptions and Open Questions
 
-No unresolved decision blocks the local repair/package scope. Assumption: the product remains a manual human-supervised agent pair. Actual model/host, integration permissions, private standards, and release approval are configuration decisions outside this audit. Universal identical model outcomes and a mathematically minimal token prompt are not established.
+No unresolved decision blocks the local repair/package scope. The product remains a manual, human-supervised workflow. Host/model choice, private standards, live permissions and release approval belong to deployment configuration and have not been certified here. Identical outcomes on every AI model and a mathematically minimal-token prompt are not established.
 
 ## Loop Summary
 
-This is a fresh corrective cycle requested after code review, not a retroactive claim that the old clean assessment was correct. Scores use the attached rubric; ceilings never raise a score.
+This corrective cycle follows the fresh re-audit; it does not retroactively validate the old clean conclusion.
 
 | Pass | Edition/revision | Dimension scores in rubric order | Raw -> final | Open before -> after repair | Recommendation |
 |---|---|---|---|---|---|
-| 1 | Both 3.2.0 copies, corrected baseline | 10, 9, 6, 6, 9, 6, 9, 6, 6, 6 | 74.4 -> **74/100** | 5 -> 0, verified at pass 2 | FIX AND RECHECK |
-| 2 | Full 3.2.1 and lean 3.2.1 | 10, 9, 10, 10, 9, 10, 9, 10, 9, 10 | 96.0 -> **96/100 each** | 0 -> 0 | READY within stated scope |
+| 1 | Both delivered 3.2.1 editions | 10, 9, 8, 9, 9, 9, 9, 8, 8, 8 | 87.8 -> **88/100 each** | 3 -> 0, verified at pass 2 | FIX AND RECHECK |
+| 2 | Full and lean 3.2.2 | 10, 9, 10, 10, 9, 10, 9, 10, 9, 10 | 96.0 -> **96/100 each** | 0 -> 0 | READY within stated scope |
 
-Baseline scores of 6 map to R1/R2/R5 (state/process), R2/R3 (output), R4/R5 (exceptions), all five missing regression cases (evaluation), and contract/validator disagreement (consistency). Five MAJOR findings impose a maximum of 79; the baseline raw score is already lower. Code-review High/Medium priorities and the prompt rubric's MAJOR labels are different scales.
-
-Exit: **STOP CONDITION MET** for this scoped repair cycle: no known open finding, score above the requested 95 threshold. The loop did not substitute repeated unchanged scoring for implementation.
+Exit: **STOP CONDITION MET** for this scoped cycle: no known open finding, score above 95. Actual repairs and fresh verification, not repeated scoring of unchanged text, support the result.
 
 ## Remaining Decisions
 
-None for these local repairs. Human per-host/model validation and release remain required.
+None for these local repairs. Per-host/model behavioral validation and human release review remain required.
